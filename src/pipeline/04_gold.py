@@ -13,9 +13,19 @@ than to recover a dimension that was aggregated away.
 
 from pyspark import pipelines as dp
 
+# Catalog comes from the pipeline configuration so the bundle's `catalog`
+# variable actually controls where datasets land. Falls back to `f1` when the
+# pipeline is created outside the bundle.
+CATALOG = spark.conf.get("f1.catalog", "f1")
+BRONZE = f"{CATALOG}.bronze"
+SILVER = f"{CATALOG}.silver"
+GOLD = f"{CATALOG}.gold"
+
 # Attach each fact row to the driver version that was current on race day.
-_AS_OF_DRIVER = """
-    LEFT JOIN f1.silver.dim_driver d
+# f-string: this fragment is interpolated into the queries below, and a nested
+# {SILVER} in a plain string would be injected as literal text, not substituted.
+_AS_OF_DRIVER = f"""
+    LEFT JOIN {SILVER}.dim_driver d
            ON d.driver_id = f.driver_id
           AND f.race_date >= d.__START_AT
           AND (d.__END_AT IS NULL OR f.race_date < d.__END_AT)
@@ -23,7 +33,7 @@ _AS_OF_DRIVER = """
 
 
 @dp.materialized_view(
-    name="f1.gold.driver_performance",
+    name=f"{GOLD}.driver_performance",
     comment=(
         "Driver performance per race: grid, finish, positions gained, points, "
         "reliability and fastest-lap flags. Grain: driver x race."
@@ -74,19 +84,19 @@ def driver_performance():
             f.position = 1              AS is_win,
             f.position <= 3             AS is_podium,
             f.points > 0                AS is_points_finish
-        FROM f1.silver.fact_result f
+        FROM {SILVER}.fact_result f
         {_AS_OF_DRIVER}
-        LEFT JOIN f1.silver.dim_race r
+        LEFT JOIN {SILVER}.dim_race r
                ON r.season = f.season AND r.round = f.round
-        LEFT JOIN f1.silver.fact_qualifying q
+        LEFT JOIN {SILVER}.fact_qualifying q
                ON q.season = f.season AND q.round = f.round AND q.driver_id = f.driver_id
-        LEFT JOIN f1.silver.fact_sprint_result sp
+        LEFT JOIN {SILVER}.fact_sprint_result sp
                ON sp.season = f.season AND sp.round = f.round AND sp.driver_id = f.driver_id
     """)
 
 
 @dp.materialized_view(
-    name="f1.gold.championship_progression",
+    name=f"{GOLD}.championship_progression",
     comment=(
         "Driver championship state after every round: cumulative points, position, "
         "gap to leader, and round-over-round movement. Grain: driver x round."
@@ -116,8 +126,8 @@ def championship_progression():
                 LAG(s.championship_position) OVER (
                     PARTITION BY s.season, s.driver_id ORDER BY s.round
                 ) AS prev_championship_position
-            FROM f1.silver.fact_driver_standing s
-            LEFT JOIN f1.silver.dim_race r
+            FROM {SILVER}.fact_driver_standing s
+            LEFT JOIN {SILVER}.dim_race r
                    ON r.season = s.season AND r.round = s.round
         )
         SELECT

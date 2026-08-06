@@ -141,5 +141,5 @@ ok "landing path: /Volumes/${CATALOG}/${VOLUME_SCHEMA}/${VOLUME_NAME}"
 cat <<EOF
 
 Next:
-  F1_LOCAL_LANDING=./landing ./scripts/deploy.sh
+  ./scripts/upload_landing.sh
 EOF

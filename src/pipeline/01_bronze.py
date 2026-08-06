@@ -15,6 +15,14 @@ first encounter. Parsing is deferred to Silver, where the schema is explicit.
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# Catalog comes from the pipeline configuration so the bundle's `catalog`
+# variable actually controls where datasets land. Falls back to `f1` when the
+# pipeline is created outside the bundle.
+CATALOG = spark.conf.get("f1.catalog", "f1")
+BRONZE = f"{CATALOG}.bronze"
+SILVER = f"{CATALOG}.silver"
+GOLD = f"{CATALOG}.gold"
+
 LANDING_ROOT = spark.conf.get("f1.landing_root")
 
 ENDPOINTS = [
@@ -37,7 +45,7 @@ def _bronze_table(endpoint: str):
     """
 
     @dp.table(
-        name=f"f1.bronze.raw_{endpoint}",
+        name=f"{BRONZE}.raw_{endpoint}",
         comment=f"Raw Jolpica {endpoint} payloads, one row per landed file.",
         table_properties={"quality": "bronze"},
     )

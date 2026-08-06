@@ -23,6 +23,14 @@ than the Silver facts (which are materialized views and cannot be streamed).
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# Catalog comes from the pipeline configuration so the bundle's `catalog`
+# variable actually controls where datasets land. Falls back to `f1` when the
+# pipeline is created outside the bundle.
+CATALOG = spark.conf.get("f1.catalog", "f1")
+BRONZE = f"{CATALOG}.bronze"
+SILVER = f"{CATALOG}.silver"
+GOLD = f"{CATALOG}.gold"
+
 _DRIVER = (
     "driverId STRING, permanentNumber STRING, code STRING, url STRING, "
     "givenName STRING, familyName STRING, dateOfBirth STRING, nationality STRING"
@@ -49,7 +57,7 @@ CONSTRUCTORS_SCHEMA = (
 def driver_team_events():
     """One event per driver per race carrying the team they drove for."""
     races = (
-        spark.readStream.table("f1.bronze.raw_results")
+        spark.readStream.table(f"{BRONZE}.raw_results")
         .withColumn("parsed", F.from_json("raw_payload", RESULTS_SCHEMA))
         .select(F.explode("parsed.payload.MRData.RaceTable.Races").alias("race"))
     )
@@ -81,7 +89,7 @@ def driver_team_events():
 
 
 dp.create_streaming_table(
-    name="f1.silver.dim_driver",
+    name=f"{SILVER}.dim_driver",
     comment=(
         "SCD Type 2 driver dimension. A new version is written when a driver "
         "changes constructor; __END_AT IS NULL marks the current row."
@@ -90,7 +98,7 @@ dp.create_streaming_table(
 )
 
 dp.create_auto_cdc_flow(
-    target="f1.silver.dim_driver",
+    target=f"{SILVER}.dim_driver",
     source="driver_team_events",
     keys=["driver_id"],
     sequence_by="race_date",
@@ -106,7 +114,7 @@ dp.create_auto_cdc_flow(
 def constructor_events():
     """One event per constructor per season, for cross-season rebrands."""
     events = (
-        spark.readStream.table("f1.bronze.raw_constructors")
+        spark.readStream.table(f"{BRONZE}.raw_constructors")
         .withColumn("parsed", F.from_json("raw_payload", CONSTRUCTORS_SCHEMA))
         .select(
             F.col("parsed.payload.MRData.ConstructorTable.season").cast("int").alias("season"),
@@ -126,7 +134,7 @@ def constructor_events():
 
 
 dp.create_streaming_table(
-    name="f1.silver.dim_constructor",
+    name=f"{SILVER}.dim_constructor",
     comment=(
         "SCD Type 2 constructor dimension, sequenced by season so team rebrands "
         "are preserved. __END_AT IS NULL marks the current row."
@@ -135,7 +143,7 @@ dp.create_streaming_table(
 )
 
 dp.create_auto_cdc_flow(
-    target="f1.silver.dim_constructor",
+    target=f"{SILVER}.dim_constructor",
     source="constructor_events",
     keys=["constructor_id"],
     sequence_by="season",

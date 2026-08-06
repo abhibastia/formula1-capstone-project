@@ -36,32 +36,53 @@ AI/BI Dashboard
 | `sql/validation_checks.sql` | Correctness checks — the bar for "done" |
 | `sql/dq_event_log.sql` | Data-quality metrics from the pipeline event log |
 | `dashboards/` | AI/BI dashboard definition |
-| `scripts/` | Workspace provisioning and pipeline run/poll |
+| `databricks.yml`, `resources/` | Asset Bundle: pipeline, job and dashboard as code |
+| `scripts/` | Catalog provisioning, raw-data upload, pipeline run/poll |
 | `ACTION_PLAN.md` | Full build plan, decisions, and acceptance criteria |
 | `CLAUDE.md` | Standing constraints — read before changing anything |
 
 ## Running it
 
-Free Edition **cannot create catalogs over the API**, so do this once by hand:
+Deployment is split in two on purpose. The **bundle** owns the pipeline, job and
+dashboard. The **scripts** own the catalog and the raw-data upload, because Free
+Edition refuses catalog creation over the API and bulk file upload is not a
+bundle concern.
+
+Once, by hand — Free Edition **cannot create catalogs over the API**:
 
 > Catalog → Create catalog → name `f1` → Default storage
 
 Then:
 
 ```bash
-# 1. Backfill locally (no Databricks compute used)
+# 1. Catalog check, schemas, landing volume
+./scripts/create_catalog.sh
+
+# 2. Backfill locally, then upload — neither step uses Databricks compute
 python3 src/ingestion/ingest.py --mode backfill --root ./landing
+./scripts/upload_landing.sh
 
-# 2. Provision schemas, volume, pipeline and job; upload code and data
-F1_LOCAL_LANDING=./landing ./scripts/deploy.sh
-
-# 3. Run the pipeline and poll it to a terminal state
-./scripts/run_pipeline.sh <pipeline_id>
+# 3. Deploy and run the bundle
+databricks bundle validate --strict -t dev --profile abhi
+databricks bundle deploy -t dev --profile abhi
+databricks bundle run f1_medallion_pipeline -t dev --profile abhi
 ```
+
+`scripts/run_pipeline.sh <pipeline_id>` is an alternative to `bundle run` with
+sharper failure output: it polls the *update* rather than the pipeline, and
+prints `error.exceptions[0].message` — the top-level message only ever says
+"Update X is FAILED".
 
 The backfill is deliberately run locally: Free Edition has a daily compute quota,
 and the Files API upload needs none. Re-running ingestion is cheap — closed
 rounds are skipped, so a second run makes ~8 API calls instead of ~260.
+
+### Targets
+
+`dev` (default) prefixes every resource with `[dev <user>]`, pauses the schedule,
+and puts the pipeline in development mode. `prod` does none of that and points at
+a **separate catalog** (`f1_prod`) — on Free Edition there is only one workspace,
+so sharing a catalog would mean a prod deploy silently overwriting dev's tables.
 
 ## Three decisions worth knowing
 

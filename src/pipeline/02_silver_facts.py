@@ -24,6 +24,14 @@ from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
+# Catalog comes from the pipeline configuration so the bundle's `catalog`
+# variable actually controls where datasets land. Falls back to `f1` when the
+# pipeline is created outside the bundle.
+CATALOG = spark.conf.get("f1.catalog", "f1")
+BRONZE = f"{CATALOG}.bronze"
+SILVER = f"{CATALOG}.silver"
+GOLD = f"{CATALOG}.gold"
+
 # ─────────────────────────── payload schemas ────────────────────────────
 # Written as DDL strings: verbose, but unambiguous and reviewable against the
 # API response. Every leaf is STRING — Ergast returns everything as text, and
@@ -154,7 +162,7 @@ RACE_RULES = {
 
 @dp.temporary_view(name="stg_race")
 def stg_race():
-    df = parse("f1.bronze.raw_races", RACES_SCHEMA, "parsed.payload.MRData.RaceTable.Races")
+    df = parse(f"{BRONZE}.raw_races", RACES_SCHEMA, "parsed.payload.MRData.RaceTable.Races")
     df = df.select(
         F.col("item.season").cast("int").alias("season"),
         F.col("item.round").cast("int").alias("round"),
@@ -175,7 +183,7 @@ def stg_race():
 
 
 @dp.materialized_view(
-    name="f1.silver.dim_race",
+    name=f"{SILVER}.dim_race",
     comment="One row per race: schedule, circuit, and location. Conformed race dimension.",
     table_properties={"quality": "silver"},
 )
@@ -186,7 +194,7 @@ def dim_race():
 
 
 @dp.materialized_view(
-    name="f1.silver.quarantine_race",
+    name=f"{SILVER}.quarantine_race",
     comment="Race rows rejected by dim_race quality rules, with the reason.",
 )
 def quarantine_race():
@@ -213,7 +221,7 @@ RESULT_RULES = {
 @dp.temporary_view(name="stg_result")
 def stg_result():
     races = parse(
-        "f1.bronze.raw_results", RESULTS_SCHEMA, "parsed.payload.MRData.RaceTable.Races"
+        f"{BRONZE}.raw_results", RESULTS_SCHEMA, "parsed.payload.MRData.RaceTable.Races"
     )
     df = races.select(
         F.col("item.season").cast("int").alias("season"),
@@ -275,7 +283,7 @@ def stg_result():
 
 
 @dp.materialized_view(
-    name="f1.silver.fact_result",
+    name=f"{SILVER}.fact_result",
     comment="Race result per driver per race: grid, finish, points, status, fastest lap.",
     table_properties={"quality": "silver"},
     cluster_by=["season", "round"],
@@ -293,7 +301,7 @@ def fact_result():
 
 
 @dp.materialized_view(
-    name="f1.silver.quarantine_result",
+    name=f"{SILVER}.quarantine_result",
     comment="Result rows rejected by fact_result quality rules, with the reason.",
 )
 def quarantine_result():
@@ -321,7 +329,7 @@ SPRINT_RULES = {
 @dp.temporary_view(name="stg_sprint_result")
 def stg_sprint_result():
     races = parse(
-        "f1.bronze.raw_sprint", SPRINT_SCHEMA, "parsed.payload.MRData.RaceTable.Races"
+        f"{BRONZE}.raw_sprint", SPRINT_SCHEMA, "parsed.payload.MRData.RaceTable.Races"
     )
     df = races.select(
         F.col("item.season").cast("int").alias("season"),
@@ -350,7 +358,7 @@ def stg_sprint_result():
 
 
 @dp.materialized_view(
-    name="f1.silver.fact_sprint_result",
+    name=f"{SILVER}.fact_sprint_result",
     comment="Sprint race result per driver. Only rounds with a sprint appear here.",
     table_properties={"quality": "silver"},
 )
@@ -361,7 +369,7 @@ def fact_sprint_result():
 
 
 @dp.materialized_view(
-    name="f1.silver.quarantine_sprint_result",
+    name=f"{SILVER}.quarantine_sprint_result",
     comment="Sprint rows rejected by quality rules, with the reason.",
 )
 def quarantine_sprint_result():
@@ -386,7 +394,7 @@ QUALI_RULES = {
 @dp.temporary_view(name="stg_qualifying")
 def stg_qualifying():
     races = parse(
-        "f1.bronze.raw_qualifying", QUALI_SCHEMA, "parsed.payload.MRData.RaceTable.Races"
+        f"{BRONZE}.raw_qualifying", QUALI_SCHEMA, "parsed.payload.MRData.RaceTable.Races"
     )
     df = races.select(
         F.col("item.season").cast("int").alias("season"),
@@ -427,7 +435,7 @@ def stg_qualifying():
 
 
 @dp.materialized_view(
-    name="f1.silver.fact_qualifying",
+    name=f"{SILVER}.fact_qualifying",
     comment="Qualifying result per driver per race, with Q1/Q2/Q3 parsed to milliseconds.",
     table_properties={"quality": "silver"},
 )
@@ -441,7 +449,7 @@ def fact_qualifying():
 
 
 @dp.materialized_view(
-    name="f1.silver.quarantine_qualifying",
+    name=f"{SILVER}.quarantine_qualifying",
     comment="Qualifying rows rejected by fact_qualifying quality rules, with the reason.",
 )
 def quarantine_qualifying():
@@ -467,7 +475,7 @@ DRIVER_STANDING_RULES = {
 @dp.temporary_view(name="stg_driver_standing")
 def stg_driver_standing():
     lists = parse(
-        "f1.bronze.raw_driver_standings",
+        f"{BRONZE}.raw_driver_standings",
         DRIVER_STANDINGS_SCHEMA,
         "parsed.payload.MRData.StandingsTable.StandingsLists",
     )
@@ -499,7 +507,7 @@ def stg_driver_standing():
 
 
 @dp.materialized_view(
-    name="f1.silver.fact_driver_standing",
+    name=f"{SILVER}.fact_driver_standing",
     comment="Driver championship standing after each round: cumulative points, wins, position.",
     table_properties={"quality": "silver"},
 )
@@ -513,7 +521,7 @@ def fact_driver_standing():
 
 
 @dp.materialized_view(
-    name="f1.silver.quarantine_driver_standing",
+    name=f"{SILVER}.quarantine_driver_standing",
     comment="Driver standing rows rejected by quality rules, with the reason.",
 )
 def quarantine_driver_standing():
@@ -539,7 +547,7 @@ CONSTRUCTOR_STANDING_RULES = {
 @dp.temporary_view(name="stg_constructor_standing")
 def stg_constructor_standing():
     lists = parse(
-        "f1.bronze.raw_constructor_standings",
+        f"{BRONZE}.raw_constructor_standings",
         CONSTRUCTOR_STANDINGS_SCHEMA,
         "parsed.payload.MRData.StandingsTable.StandingsLists",
     )
@@ -567,7 +575,7 @@ def stg_constructor_standing():
 
 
 @dp.materialized_view(
-    name="f1.silver.fact_constructor_standing",
+    name=f"{SILVER}.fact_constructor_standing",
     comment="Constructor championship standing after each round.",
     table_properties={"quality": "silver"},
 )
@@ -581,7 +589,7 @@ def fact_constructor_standing():
 
 
 @dp.materialized_view(
-    name="f1.silver.quarantine_constructor_standing",
+    name=f"{SILVER}.quarantine_constructor_standing",
     comment="Constructor standing rows rejected by quality rules, with the reason.",
 )
 def quarantine_constructor_standing():
