@@ -53,7 +53,7 @@ Then:
 python3 src/ingestion/ingest.py --mode backfill --root ./landing
 
 # 2. Provision schemas, volume, pipeline and job; upload code and data
-F1_LOCAL_LANDING=./landing ./scripts/setup_workspace.sh
+F1_LOCAL_LANDING=./landing ./scripts/deploy.sh
 
 # 3. Run the pipeline and poll it to a terminal state
 ./scripts/run_pipeline.sh <pipeline_id>

@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 #
-# Provisions the whole project into a Databricks workspace and runs it.
+# Deploys this project INTO the existing Databricks workspace.
+#
+# It does NOT create a workspace. Free Edition allows exactly one, and workspace
+# creation lives behind the account-level API, which this credential cannot even
+# reach (`databricks account workspaces list` → Not Found).
+#
+# Note the CLI naming trap: `databricks workspace ...` manages FILES inside your
+# workspace — the notebook/file tree — and is unrelated to creating workspaces.
+#
+# What this actually does, all inside the one workspace:
+#   1. catalog + schemas + volume   (delegated to create_catalog.sh)
+#   2. uploads raw JSON to the UC Volume        — Files API, no compute
+#   3. uploads pipeline + ingestion source code — Workspace files API
+#   4. creates/updates the Lakeflow pipeline    — metadata only, no compute
+#   5. creates the scheduled ingestion job      — metadata only, no compute
+#
+# Only running the pipeline afterwards consumes the daily compute quota.
 #
 # Idempotent: every step tolerates already-existing objects, so re-running after
 # a partial failure is safe.
@@ -11,7 +27,7 @@
 #     Catalog → Create catalog → name: f1 → Default storage
 #
 # Usage:
-#     ./scripts/setup_workspace.sh [--skip-upload]
+#     ./scripts/deploy.sh [--skip-upload]
 
 set -euo pipefail
 
