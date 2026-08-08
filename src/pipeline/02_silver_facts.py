@@ -322,7 +322,9 @@ SPRINT_RULES = {
     "driver_id_present": "driver_id IS NOT NULL",
     "season_present": "season IS NOT NULL",
     "round_present": "round IS NOT NULL",
-    "classification_present": "position IS NOT NULL OR position_text IS NOT NULL",
+    # The staged column is `sprint_position`, not `position` — these rules are
+    # evaluated against stg_sprint_result, whose aliases differ from stg_result.
+    "classification_present": "sprint_position IS NOT NULL OR position_text IS NOT NULL",
 }
 
 
