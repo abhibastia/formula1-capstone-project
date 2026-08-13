@@ -152,3 +152,90 @@ def championship_progression():
         FROM standings f
         {_AS_OF_DRIVER}
     """)
+
+
+@dp.materialized_view(
+    name=f"{GOLD}.race_conditions",
+    comment=(
+        "Measured weather joined to what actually happened on track. Grain: "
+        "race. Answers whether rain made a race chaotic — and, when the answer "
+        "is no, gives the numbers to say so."
+    ),
+    table_properties={"quality": "gold"},
+    cluster_by=["season", "round"],
+)
+def race_conditions():
+    """One row per race, whether or not it has weather.
+
+    LEFT JOIN, deliberately. An INNER JOIN would silently drop every race
+    inside the ERA5 publication lag, so the mart would quietly cover fewer
+    races than the season has and nothing would say why. `weather_available`
+    makes the gap a fact you can filter on instead of an absence you have to
+    notice.
+
+    The outcome columns are aggregated from the results fact rather than read
+    from a standings table, so retirement rate and positions gained are
+    computed on the same grain as the weather they sit beside.
+    """
+    return spark.sql(f"""
+        WITH outcomes AS (
+            SELECT
+                season,
+                round,
+                COUNT(*)                                          AS drivers_classified,
+                SUM(CASE WHEN dnf_flag THEN 1 ELSE 0 END)         AS retirements,
+                ROUND(100.0 * AVG(CASE WHEN dnf_flag THEN 1.0 ELSE 0.0 END), 1)
+                                                                  AS retirement_rate_pct,
+                ROUND(AVG(ABS(positions_gained)), 2)              AS avg_abs_positions_changed,
+                MAX(CASE WHEN finish_position = 1 THEN driver_name END)     AS winner,
+                MAX(CASE WHEN finish_position = 1 THEN grid_position END)   AS winner_grid_position,
+                MAX(CASE WHEN finish_position = 1
+                         THEN constructor_name_as_of_race END)              AS winning_constructor
+            FROM {GOLD}.driver_performance
+            GROUP BY season, round
+        )
+        SELECT
+            r.season,
+            r.round,
+            r.race_date,
+            r.race_name,
+            r.circuit_id,
+            r.circuit_name,
+            r.circuit_country,
+
+            -- Weather. NULL here means no published observation, not fair weather.
+            w.season IS NOT NULL          AS weather_available,
+            w.precipitation_mm,
+            w.rain_mm,
+            w.temp_max_c,
+            w.temp_min_c,
+            w.wind_max_kmh,
+            w.conditions,
+            w.was_wet,
+
+            -- Outcome on the same grain.
+            o.drivers_classified,
+            o.retirements,
+            o.retirement_rate_pct,
+            o.avg_abs_positions_changed,
+            o.winner,
+            o.winner_grid_position,
+            o.winning_constructor,
+
+            -- The comparison the mart exists for. A race can be flagged wet by
+            -- rainfall and still run dry: a daily total cannot tell rain that
+            -- fell overnight from rain that fell during the race. Naming the
+            -- source of the flag keeps that readable downstream.
+            CASE
+                WHEN w.season IS NULL      THEN 'no observation'
+                WHEN w.was_wet             THEN 'flagged wet by rainfall'
+                ELSE                            'under the wet threshold'
+            END                            AS rainfall_verdict
+        FROM {SILVER}.dim_race r
+        LEFT JOIN {SILVER}.fact_race_weather w
+               ON w.season = r.season AND w.round = r.round
+        LEFT JOIN outcomes o
+               ON o.season = r.season AND o.round = r.round
+        WHERE r.race_date <= current_date()
+    """)
+

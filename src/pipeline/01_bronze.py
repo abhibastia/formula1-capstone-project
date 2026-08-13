@@ -25,16 +25,26 @@ GOLD = f"{CATALOG}.gold"
 
 LANDING_ROOT = spark.conf.get("f1.landing_root")
 
-ENDPOINTS = [
-    "races",
-    "drivers",
-    "constructors",
-    "sprint",
-    "results",
-    "qualifying",
-    "driver_standings",
-    "constructor_standings",
-]
+# Endpoint -> the host its payloads must come from.
+#
+# The expectation used to be a single hardcoded jolpi.ca check, which was
+# correct while every source was Jolpica. Weather comes from Open-Meteo, so a
+# shared rule would fail on every weather row — and an expectation that is
+# always violated teaches you to ignore the one signal meant to catch a payload
+# landing in the wrong folder.
+ENDPOINT_SOURCES = {
+    "races": "https://api.jolpi.ca/%",
+    "drivers": "https://api.jolpi.ca/%",
+    "constructors": "https://api.jolpi.ca/%",
+    "sprint": "https://api.jolpi.ca/%",
+    "results": "https://api.jolpi.ca/%",
+    "qualifying": "https://api.jolpi.ca/%",
+    "driver_standings": "https://api.jolpi.ca/%",
+    "constructor_standings": "https://api.jolpi.ca/%",
+    "weather": "https://archive-api.open-meteo.com/%",
+}
+
+ENDPOINTS = list(ENDPOINT_SOURCES)
 
 
 def _bronze_table(endpoint: str):
@@ -50,7 +60,7 @@ def _bronze_table(endpoint: str):
         table_properties={"quality": "bronze"},
     )
     @dp.expect("payload_present", "raw_payload IS NOT NULL AND length(raw_payload) > 0")
-    @dp.expect("expected_source", "_source_url LIKE 'https://api.jolpi.ca/%'")
+    @dp.expect("expected_source", f"_source_url LIKE '{ENDPOINT_SOURCES[endpoint]}'")
     def _table():
         df = (
             spark.readStream.format("cloudFiles")
