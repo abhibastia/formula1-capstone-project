@@ -12,14 +12,23 @@
 #
 # Usage:
 #     python3 src/ingestion/ingest.py --mode backfill --root ./landing
-#     ./scripts/upload_landing.sh [local_dir]
+#     ./scripts/upload_landing.sh --profile <name> [local_dir]
 
-set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
+preflight "$@"
 
-PROFILE="${DATABRICKS_PROFILE:-abhi}"
-CATALOG="${F1_CATALOG:-f1}"
-LOCAL_DIR="${1:-${F1_LOCAL_LANDING:-./landing}}"
-VOLUME_PATH="/Volumes/${CATALOG}/raw/landing"
+# The source directory is the first bare argument. `--profile <name>` is
+# consumed by preflight, so its value must not be mistaken for a path.
+LOCAL_DIR="$LOCAL_LANDING"
+skip_next=0
+for arg in "$@"; do
+  if [[ $skip_next -eq 1 ]]; then skip_next=0; continue; fi
+  case "$arg" in
+    --profile) skip_next=1 ;;
+    --*)       ;;
+    *)         LOCAL_DIR="$arg" ;;
+  esac
+done
 
 if [[ ! -d "$LOCAL_DIR" ]]; then
   echo "ERROR: '${LOCAL_DIR}' not found. Run the backfill first:" >&2
@@ -39,6 +48,6 @@ databricks fs ls "dbfs:${VOLUME_PATH}" --profile "$PROFILE" | sed 's/^/    /'
 cat <<EOF
 
 Next:
-  databricks bundle deploy -t dev --profile ${PROFILE}
-  databricks bundle run f1_medallion_pipeline -t dev --profile ${PROFILE}
+  databricks bundle deploy -t ${TARGET} --profile ${PROFILE}
+  databricks bundle run f1_end_to_end -t ${TARGET} --profile ${PROFILE}
 EOF

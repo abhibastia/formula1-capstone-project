@@ -18,6 +18,10 @@ landing/
 # one workspace and one user.
 .databricks/
 
+# Local environment overrides. `.env.example` is the committed template; the
+# copy holds one person's profile and workspace.
+.env
+
 # Editors and OS
 .idea/
 .vscode/

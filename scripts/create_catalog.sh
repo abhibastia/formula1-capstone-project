@@ -19,20 +19,12 @@
 # Schemas and Volumes have no such restriction — plain UC API calls, no compute.
 #
 # Usage:
-#     ./scripts/create_catalog.sh
+#     ./scripts/create_catalog.sh --profile <name>
 
-set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
+preflight "$@"
 
-PROFILE="${DATABRICKS_PROFILE:-abhi}"
-CATALOG="${F1_CATALOG:-f1}"
 SCHEMAS=(raw bronze silver gold)
-VOLUME_SCHEMA="raw"
-VOLUME_NAME="landing"
-
-bold() { printf '\n\033[1m▸ %s\033[0m\n' "$*"; }
-ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
-warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
-fail() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 
 catalog_exists() {
   databricks catalogs get "$CATALOG" --profile "$PROFILE" >/dev/null 2>&1
