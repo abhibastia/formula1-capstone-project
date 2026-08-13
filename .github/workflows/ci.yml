@@ -1,0 +1,57 @@
+# Everything that can be checked without a Databricks workspace.
+#
+# Deliberately no credentials and no compute: this runs on every push and pull
+# request, and a CI job that needs a workspace secret is a CI job that never
+# runs on a fork. The workspace-side checks — the Spark unit tests and the mart
+# validation — are tasks of the `f1_end_to_end` job instead, where the compute
+# they need already exists.
+#
+# What this would have caught, had it existed: a pipeline file using the legacy
+# `dlt` API, a dashboard tile pinned to the wrong widget version, an expectation
+# naming a column its staged view does not emit, and a workspace host hardcoded
+# into databricks.yml.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Unit and contract tests
+        run: pytest
+
+      - name: Expectation pre-flight
+        run: python3 scripts/check_expectations.py
+
+      - name: Shell scripts parse
+        run: bash -n scripts/*.sh
+
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: databricks/setup-cli@main
+
+      # Validates structure, variable references and resource wiring. It does
+      # not contact a workspace, so no secret is needed — and that is the point:
+      # a malformed databricks.yml should fail here, not on someone's deploy.
+      - name: Bundle validates
+        run: databricks bundle validate -t dev
+        env:
+          DATABRICKS_HOST: https://example.cloud.databricks.com
+          DATABRICKS_TOKEN: dummy-token-for-offline-validation
