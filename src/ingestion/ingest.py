@@ -45,7 +45,6 @@ def _module_dir() -> str:
 
 sys.path.insert(0, _module_dir())
 
-
 from config import (
     ALL_ENDPOINTS,
     BACKFILL_SEASONS,
@@ -57,6 +56,9 @@ from config import (
 )
 from jolpica_client import JolpicaError, fetch_all
 from landing_writer import should_write, write_payload
+
+import weather
+from config import ARCHIVE_LAG_DAYS
 
 log = logging.getLogger("ingest")
 
@@ -91,6 +93,27 @@ def parse_race_calendar(races_payload: dict) -> dict[int, dt.date]:
     return calendar
 
 
+def parse_race_coordinates(races_payload: dict) -> dict[int, tuple[float, float]]:
+    """Map round number -> (latitude, longitude) of the circuit.
+
+    The coordinates are already in the races payload under Circuit.Location, so
+    the weather source needs no lookup table and no second opinion about where
+    a circuit is. Kept separate from parse_race_calendar rather than widening
+    its return type, because every existing caller wants a plain date.
+    """
+    races = races_payload["MRData"]["RaceTable"]["Races"]
+    coords: dict[int, tuple[float, float]] = {}
+    for race in races:
+        try:
+            location = race["Circuit"]["Location"]
+            coords[int(race["round"])] = (
+                float(location["lat"]), float(location["long"])
+            )
+        except (KeyError, TypeError, ValueError):
+            log.warning("no usable coordinates for round %s", race.get("round"))
+    return coords
+
+
 def ingest_season(season: int, root: str, summary: RunSummary) -> None:
     log.info("=== season %s ===", season)
     today = dt.date.today()
@@ -109,6 +132,7 @@ def ingest_season(season: int, root: str, summary: RunSummary) -> None:
     if not calendar:
         log.warning("season %s has no races — skipping", season)
         return
+    coordinates = parse_race_coordinates(races)
 
     # Season-level endpoints. Treated as closed once the season's last race is
     # well past, using that date as the season's own "race date".
@@ -152,6 +176,50 @@ def ingest_season(season: int, root: str, summary: RunSummary) -> None:
             except JolpicaError as exc:
                 summary.failures.append(f"{endpoint} {season} r{round_no}: {exc}")
 
+        ingest_race_weather(season, round_no, race_date, coordinates, root, summary)
+
+
+def ingest_race_weather(
+    season: int,
+    round_no: int,
+    race_date: dt.date,
+    coordinates: dict[int, tuple[float, float]],
+    root: str,
+    summary: RunSummary,
+) -> None:
+    """Land one measured observation for a race, or skip with a reason.
+
+    Separate from the Jolpica loop because it is a different API with a
+    different failure mode: a race inside the ERA5 publication lag is not an
+    error, it is simply not published yet, and must not land as a row claiming
+    no rain.
+    """
+    if round_no not in coordinates:
+        summary.failures.append(f"weather {season} r{round_no}: no coordinates")
+        return
+
+    if not weather.is_available(race_date):
+        log.info("weather %s r%s: inside the %s-day archive lag — skipping",
+                 season, round_no, ARCHIVE_LAG_DAYS)
+        summary.partitions_skipped += 1
+        return
+
+    if not should_write(root, "weather", season, round_no, race_date):
+        summary.partitions_skipped += 1
+        return
+
+    latitude, longitude = coordinates[round_no]
+    try:
+        payload = weather.fetch_race_weather(latitude, longitude, race_date)
+        summary.requests_made += 1
+        write_payload(
+            root, "weather", season, round_no, payload,
+            weather.build_url(latitude, longitude, race_date),
+        )
+        summary.files_written += 1
+    except weather.WeatherError as exc:
+        summary.failures.append(f"weather {season} r{round_no}: {exc}")
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Ingest Jolpica F1 data")
@@ -178,4 +246,13 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    _status = main()
+    # Only exit non-zero. A serverless `spark_python_task` runs this file
+    # through exec(), where SystemExit propagates to the task runner and is
+    # reported as a failed task - even SystemExit(0). The ingestion had in fact
+    # completed and landed its files; the job still showed FAILED, which is a
+    # worse outcome than a silent success because it hides real failures behind
+    # noise. Locally `python ingest.py` is unaffected: a clean run simply
+    # returns, and a run with failures still exits non-zero.
+    if _status:
+        sys.exit(_status)

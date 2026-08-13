@@ -13,6 +13,40 @@ VOLUME_ROOT = f"/Volumes/{CATALOG}/{RAW_SCHEMA}/{VOLUME}"
 
 BASE_URL = "https://api.jolpi.ca/ergast/f1"
 
+# --- Open-Meteo ------------------------------------------------------------
+# Measured race-day weather at the circuit's coordinates, from the ERA5
+# reanalysis archive. Free, keyless, non-commercial use.
+#
+# This is the second source, and it is deliberately *measured* rather than
+# forecast or scraped from a race report: the whole point is to be able to
+# compare what fell from the sky against what the report says happened on track.
+OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+
+# Daily fields requested. Kept minimal — every extra field is a wider Bronze row
+# for a question nobody has asked yet.
+OPEN_METEO_DAILY = (
+    "precipitation_sum",
+    "rain_sum",
+    "temperature_2m_max",
+    "temperature_2m_min",
+    "wind_speed_10m_max",
+    "weather_code",
+)
+
+# ERA5 is a reanalysis product, not a live feed: observations are assimilated
+# and published on a lag. Asking for a race inside this window returns nulls,
+# which would land as a row claiming no rain at a race nobody has data for.
+ARCHIVE_LAG_DAYS = 5
+
+# 1.0 mm over a race day is the point where rain starts affecting tyre choice
+# and grip rather than merely being noted. Applied in Silver, defined here so
+# the pipeline and any analysis agree on one number.
+WET_THRESHOLD_MM = 1.0
+
+# Open-Meteo's free tier allows ~10,000 calls/day, far above the ~71 this
+# project makes. The throttle is politeness, not necessity.
+OPEN_METEO_REQUESTS_PER_SECOND = 5.0
+
 # Backfill seasons are complete and immutable; the live season is re-polled.
 BACKFILL_SEASONS = [2024, 2025]
 LIVE_SEASON = 2026
@@ -69,6 +103,10 @@ ALL_ENDPOINTS = {**SEASON_ENDPOINTS, **ROUND_ENDPOINTS}
 # The MRData sub-table each endpoint's records live under, and the array key
 # holding the records. Used by the Silver layer; kept here so the contract is
 # declared in exactly one place.
+#
+# `weather` is deliberately absent: Open-Meteo returns flat parallel arrays, not
+# an MRData envelope, so Silver parses it with its own schema rather than the
+# generic MRData path.
 ENDPOINT_SHAPE = {
     "races": ("RaceTable", "Races"),
     "drivers": ("DriverTable", "Drivers"),
