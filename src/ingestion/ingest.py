@@ -21,7 +21,30 @@ from dataclasses import dataclass, field
 
 # A Databricks job does not guarantee the task file's directory is on sys.path,
 # so the sibling imports below would fail. Add it explicitly.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+#
+# __file__ cannot be relied on here. A serverless `spark_python_task` runs the
+# file through exec(compile(...)) in a notebook-style kernel, where __file__ is
+# never bound - so this line raised NameError before a single API call was made,
+# and the job had never once completed. Running it locally always worked, which
+# is exactly why the bug survived: `python ingest.py` binds __file__ and the job
+# runner does not.
+def _module_dir() -> str:
+    if "__file__" in globals():
+        return os.path.dirname(os.path.abspath(__file__))
+    # Fall back to the notebook context's own path when the runner provides one,
+    # then to the working directory.
+    try:
+        from dbutils import DBUtils  # noqa: F401  (only present on Databricks)
+    except Exception:
+        pass
+    for candidate in (os.environ.get("DATABRICKS_SOURCE_DIR"), os.getcwd()):
+        if candidate and os.path.isdir(candidate):
+            return candidate
+    return "."
+
+
+sys.path.insert(0, _module_dir())
+
 
 from config import (
     ALL_ENDPOINTS,
