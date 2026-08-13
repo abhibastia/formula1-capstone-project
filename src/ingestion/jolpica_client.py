@@ -15,32 +15,97 @@ import urllib.request
 import json
 from typing import Any
 
+from collections import deque
+
 from config import (
     BACKOFF_BASE_SECONDS,
     BASE_URL,
     MAX_RETRIES,
     PAGE_SIZE,
     REQUEST_TIMEOUT_SECONDS,
+    REQUESTS_PER_HOUR,
     REQUESTS_PER_SECOND,
 )
 
 log = logging.getLogger(__name__)
 
-_MIN_INTERVAL = 1.0 / REQUESTS_PER_SECOND
-_last_request_at = 0.0
+HOUR_SECONDS = 3600.0
 
 
 class JolpicaError(RuntimeError):
     """Raised when a request cannot be completed after all retries."""
 
 
+class RateBudget:
+    """Enforces both of Jolpica's limits: burst and sustained.
+
+    The burst limit is a minimum gap between requests. The sustained limit needs
+    a sliding window — a counter reset on the hour would allow 500 requests at
+    59 minutes and another 500 at 61, which is 1,000 in two minutes.
+
+    Only the burst half existed before. That was adequate while a full backfill
+    was ~200 calls; `laps` is ~850 across three seasons, so a run that respects
+    only the per-second gap would breach the hourly ceiling in the first five
+    minutes and start collecting 429s for the rest of the harvest.
+
+    `clock` and `sleeper` are injectable so the waiting behaviour can be tested
+    without a test that actually waits an hour.
+    """
+
+    def __init__(self, per_second: float, per_hour: int,
+                 clock=time.monotonic, sleeper=time.sleep) -> None:
+        self._min_interval = 1.0 / per_second
+        self._per_hour = per_hour
+        self._clock = clock
+        self._sleep = sleeper
+        self._window: deque[float] = deque()
+        # None, not 0.0: "no request yet" has to be distinguishable from "a
+        # request at time zero", or the first call waits for a gap it never
+        # needed. Production hid this because time.monotonic() starts large.
+        self._last_request_at: float | None = None
+
+    def _drop_expired(self, now: float) -> None:
+        while self._window and now - self._window[0] >= HOUR_SECONDS:
+            self._window.popleft()
+
+    def acquire(self) -> None:
+        """Block until another request is allowed under both limits."""
+        now = self._clock()
+        self._drop_expired(now)
+
+        # Sustained: wait for the oldest request in the window to age out.
+        if len(self._window) >= self._per_hour:
+            wait = HOUR_SECONDS - (now - self._window[0])
+            if wait > 0:
+                log.warning(
+                    "hourly budget of %s reached — pausing %.0fs. This is the "
+                    "sustained limit, not an error.", self._per_hour, wait)
+                self._sleep(wait)
+                now = self._clock()
+                self._drop_expired(now)
+
+        # Burst: keep a minimum gap between consecutive requests.
+        if self._last_request_at is not None:
+            gap = now - self._last_request_at
+            if gap < self._min_interval:
+                self._sleep(self._min_interval - gap)
+                now = self._clock()
+
+        self._last_request_at = now
+        self._window.append(now)
+
+    @property
+    def used_this_hour(self) -> int:
+        self._drop_expired(self._clock())
+        return len(self._window)
+
+
+_budget = RateBudget(REQUESTS_PER_SECOND, REQUESTS_PER_HOUR)
+
+
 def _throttle() -> None:
-    """Space requests so we never approach the 4 req/s burst limit."""
-    global _last_request_at
-    elapsed = time.monotonic() - _last_request_at
-    if elapsed < _MIN_INTERVAL:
-        time.sleep(_MIN_INTERVAL - elapsed)
-    _last_request_at = time.monotonic()
+    """Space requests to stay inside both published limits."""
+    _budget.acquire()
 
 
 def _get(url: str) -> dict[str, Any]:

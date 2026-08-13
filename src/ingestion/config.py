@@ -17,8 +17,28 @@ BASE_URL = "https://api.jolpi.ca/ergast/f1"
 BACKFILL_SEASONS = [2024, 2025]
 LIVE_SEASON = 2026
 
-# Jolpica limits: 4 req/s burst, 500 req/hr sustained. We stay well inside both.
-REQUESTS_PER_SECOND = 2.0
+# Jolpica publishes two limits and they bind at different scales:
+#   * 4 requests/second burst  — REQUESTS_PER_SECOND handles this
+#   * 500 requests/hour sustained — REQUESTS_PER_HOUR handles this
+#
+# Only the burst limit used to be enforced, which was fine while the endpoint
+# set totalled ~200 calls per backfill. It stops being fine with `laps`: at 12
+# pages per round, three seasons is ~850 requests, and 2 req/s would fire 7,200
+# in an hour. The sustained limit is the real ceiling for any large backfill.
+#
+# 450 rather than 500 leaves headroom for the retries a long run will make.
+#
+# 2.0 req/s was set from Jolpica's published 4/s burst limit. Measured against
+# the real API during a laps backfill it produced a 429 on roughly 37% of
+# requests — the enforced burst rate is well under the documented one for
+# unauthenticated clients. Worse, every retry spends the hourly budget, so a
+# rate that trips throttling burns the allowance twice: once on the rejected
+# request and again on the retry.
+#
+# 0.5 req/s spaces a race's 11 lap pages over ~22 seconds, which the API
+# accepts without complaint. Slower per request, faster overall.
+REQUESTS_PER_SECOND = 0.5
+REQUESTS_PER_HOUR = 450
 PAGE_SIZE = 100
 MAX_RETRIES = 5
 BACKOFF_BASE_SECONDS = 2.0
