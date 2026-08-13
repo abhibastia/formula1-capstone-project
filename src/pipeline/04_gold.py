@@ -239,3 +239,114 @@ def race_conditions():
         WHERE r.race_date <= current_date()
     """)
 
+
+@dp.materialized_view(
+    name=f"{GOLD}.race_strategy",
+    comment=(
+        "Pit-stop strategy per driver per race: stops, derived stints, service "
+        "times, and how that compared with the rest of the field. Grain: "
+        "driver x race. Answers whether a result was decided in the pit lane."
+    ),
+    table_properties={"quality": "gold"},
+    cluster_by=["season", "round"],
+)
+def race_strategy():
+    """Stints are derived, not sourced.
+
+    Nothing publishes stints; they follow from the stops. A driver who stopped
+    twice ran three stints, so stints = stops + 1 for anyone who finished. That
+    identity is the whole reason pit stops are worth ingesting: it turns a list
+    of events into the shape of a race.
+
+    The field context matters as much as the driver's own numbers. "Two stops"
+    means nothing alone; "two stops when everyone else made three" is the story.
+    field_modal_stops and strategy_vs_field carry that so a dashboard tile does
+    not have to re-derive it and risk disagreeing with the next tile.
+
+    Drivers with no stop at all are included with zero: a one-stint race is a
+    strategy, and dropping those rows would understate how often it happens.
+    """
+    return spark.sql(f"""
+        WITH per_driver AS (
+            SELECT
+                season,
+                round,
+                driver_id,
+                COUNT(*)                                            AS stops,
+                COUNT(*) + 1                                        AS stints,
+                MIN(lap)                                            AS first_stop_lap,
+                MAX(lap)                                            AS last_stop_lap,
+                -- Only real service stops are timed. A 35-minute red-flag
+                -- stoppage is a true duration and a meaningless average.
+                ROUND(AVG(CASE WHEN is_service_stop THEN duration_s END), 2)
+                                                                    AS avg_service_stop_s,
+                ROUND(MIN(CASE WHEN is_service_stop THEN duration_s END), 2)
+                                                                    AS fastest_stop_s,
+                ROUND(SUM(CASE WHEN is_service_stop THEN duration_s END), 2)
+                                                                    AS total_service_time_s,
+                SUM(CASE WHEN NOT is_service_stop THEN 1 ELSE 0 END) AS stoppages
+            FROM {SILVER}.fact_pit_stop
+            GROUP BY season, round, driver_id
+        ),
+        field AS (
+            -- The most common stop count in each race, and the spread. A race
+            -- where everyone stopped twice was not decided in the pit lane; a
+            -- race spanning one to four stops probably was.
+            SELECT
+                season,
+                round,
+                MIN(stops)                                          AS field_min_stops,
+                MAX(stops)                                          AS field_max_stops,
+                ROUND(AVG(stops), 2)                                AS field_avg_stops,
+                MODE(stops)                                         AS field_modal_stops
+            FROM per_driver
+            GROUP BY season, round
+        )
+        SELECT
+            p.season,
+            p.round,
+            d.race_date,
+            d.race_name,
+            d.circuit_id,
+            d.circuit_name,
+            p.driver_id,
+            dp.driver_name,
+            dp.constructor_name_as_of_race,
+
+            p.stops,
+            p.stints,
+            p.first_stop_lap,
+            p.last_stop_lap,
+            p.avg_service_stop_s,
+            p.fastest_stop_s,
+            p.total_service_time_s,
+            p.stoppages,
+
+            f.field_min_stops,
+            f.field_max_stops,
+            f.field_avg_stops,
+            f.field_modal_stops,
+            f.field_max_stops - f.field_min_stops                    AS field_stop_spread,
+            CASE
+                WHEN p.stops < f.field_modal_stops THEN 'fewer stops than the field'
+                WHEN p.stops > f.field_modal_stops THEN 'more stops than the field'
+                ELSE 'same as the field'
+            END                                                     AS strategy_vs_field,
+
+            dp.grid_position,
+            dp.finish_position,
+            dp.positions_gained,
+            dp.dnf_flag,
+            dp.total_points
+        FROM per_driver p
+        JOIN field f
+          ON f.season = p.season AND f.round = p.round
+        JOIN {SILVER}.dim_race d
+          ON d.season = p.season AND d.round = p.round
+        -- LEFT: a driver can appear in the stop feed and be missing from the
+        -- results mart (withdrawn after the formation lap). Better a strategy
+        -- row with no outcome than a silently dropped stop.
+        LEFT JOIN {GOLD}.driver_performance dp
+          ON dp.season = p.season AND dp.round = p.round AND dp.driver_id = p.driver_id
+    """)
+

@@ -199,6 +199,12 @@ def _count_records(records: list[dict[str, Any]], array_key: str) -> int:
         "QualifyingResults",
         "DriverStandings",
         "ConstructorStandings",
+        # PitStops and Laps report `total` the same way: the outer array holds one
+        # race, `total` counts the inner records. Omitting them made the loop
+        # count 1 against a total of 30, fetch a second page, get nothing back,
+        # and log "empty page — stopping early" once per race. Correct output,
+        # one wasted request every time.
+        "PitStops",
     )
     total = 0
     for record in records:

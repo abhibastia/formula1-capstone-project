@@ -96,6 +96,13 @@ ROUND_ENDPOINTS = {
     "qualifying": "{season}/{round}/qualifying",
     "driver_standings": "{season}/{round}/driverStandings",
     "constructor_standings": "{season}/{round}/constructorStandings",
+    # One page per race (~30 stops), so it costs one request per round — the
+    # cheap half of the strategy layer. `laps` is the expensive half.
+    "pitstops": "{season}/{round}/pitstops",
+    # ~11 pages per race: `total` counts timings (one per driver per lap), so a
+    # 53-lap race with 20 cars is ~1,008 records. Three seasons is ~780
+    # requests against a 450/hour ceiling — the single most expensive endpoint,
+    # and the reason RateBudget enforces the sustained limit.
 }
 
 ALL_ENDPOINTS = {**SEASON_ENDPOINTS, **ROUND_ENDPOINTS}
@@ -116,4 +123,5 @@ ENDPOINT_SHAPE = {
     "qualifying": ("RaceTable", "Races"),
     "driver_standings": ("StandingsTable", "StandingsLists"),
     "constructor_standings": ("StandingsTable", "StandingsLists"),
+    "pitstops": ("RaceTable", "Races"),
 }
