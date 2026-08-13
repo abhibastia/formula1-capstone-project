@@ -42,6 +42,7 @@ ENDPOINT_SOURCES = {
     "driver_standings": "https://api.jolpi.ca/%",
     "constructor_standings": "https://api.jolpi.ca/%",
     "pitstops": "https://api.jolpi.ca/%",
+    "laps": "https://api.jolpi.ca/%",
     "weather": "https://archive-api.open-meteo.com/%",
 }
 

@@ -350,3 +350,125 @@ def race_strategy():
           ON dp.season = p.season AND dp.round = p.round AND dp.driver_id = p.driver_id
     """)
 
+
+@dp.materialized_view(
+    name=f"{GOLD}.lap_pace",
+    comment=(
+        "Race pace per driver: clean-lap median, best lap, consistency and laps "
+        "led, with pace expressed relative to the race winner. Grain: driver x "
+        "race. Answers who was actually fast, as distinct from who finished "
+        "ahead."
+    ),
+    table_properties={"quality": "gold"},
+    cluster_by=["season", "round"],
+)
+def lap_pace():
+    """Pace measured on clean laps only.
+
+    A raw lap-time average is close to meaningless: an in-lap, an out-lap and
+    every lap behind a safety car are all "laps", and a driver who pitted three
+    times looks slow for reasons that have nothing to do with speed. Filtering
+    to laps within 107% of that driver's own best in that race — the same
+    threshold F1 uses for qualifying — removes the traffic and the pit cycles
+    while keeping genuine racing laps, including the slow ones.
+
+    The threshold is per driver, not per race, so a backmarker is judged
+    against their own pace rather than the leader's.
+
+    Consistency is the standard deviation of those clean laps. Two drivers can
+    share a median and be doing very different jobs; the one with the tighter
+    spread is the one managing tyres rather than taking lumps out of them.
+    """
+    return spark.sql(f"""
+        WITH driver_best AS (
+            SELECT season, round, driver_id, MIN(lap_time_s) AS best_lap_s
+            FROM {SILVER}.fact_lap
+            GROUP BY season, round, driver_id
+        ),
+        clean AS (
+            SELECT
+                l.season,
+                l.round,
+                l.driver_id,
+                l.lap,
+                l.lap_time_s,
+                l.position
+            FROM {SILVER}.fact_lap l
+            JOIN driver_best b
+              ON b.season = l.season AND b.round = l.round AND b.driver_id = l.driver_id
+            WHERE l.lap_time_s <= b.best_lap_s * 1.07
+        ),
+        per_driver AS (
+            SELECT
+                c.season,
+                c.round,
+                c.driver_id,
+                COUNT(*)                                          AS clean_laps,
+                ROUND(MEDIAN(c.lap_time_s), 3)                    AS median_clean_lap_s,
+                ROUND(MIN(c.lap_time_s), 3)                       AS best_lap_s,
+                ROUND(STDDEV_SAMP(c.lap_time_s), 3)               AS consistency_s
+            FROM clean c
+            GROUP BY c.season, c.round, c.driver_id
+        ),
+        all_laps AS (
+            SELECT
+                season,
+                round,
+                driver_id,
+                COUNT(*)                                          AS laps_recorded,
+                SUM(CASE WHEN position = 1 THEN 1 ELSE 0 END)     AS laps_led
+            FROM {SILVER}.fact_lap
+            GROUP BY season, round, driver_id
+        ),
+        -- The reference is the fastest median in the race, not the winner's:
+        -- a winner who controlled the race from the front is often not the
+        -- quickest car on the day, and calling their pace 0% would hide that.
+        reference AS (
+            SELECT season, round, MIN(median_clean_lap_s) AS reference_median_s
+            FROM per_driver
+            GROUP BY season, round
+        )
+        SELECT
+            p.season,
+            p.round,
+            d.race_date,
+            d.race_name,
+            d.circuit_id,
+            d.circuit_name,
+            p.driver_id,
+            dp.driver_name,
+            dp.constructor_name_as_of_race,
+
+            a.laps_recorded,
+            p.clean_laps,
+            a.laps_led,
+            p.median_clean_lap_s,
+            p.best_lap_s,
+            p.consistency_s,
+            r.reference_median_s,
+            ROUND(100.0 * (p.median_clean_lap_s - r.reference_median_s)
+                        / r.reference_median_s, 3)                AS pace_deficit_pct,
+
+            dp.grid_position,
+            dp.finish_position,
+            dp.positions_gained,
+            dp.dnf_flag,
+            -- The comparison the mart exists for: fast and finished ahead is
+            -- unremarkable, fast and finished behind is a story about strategy,
+            -- reliability or traffic.
+            CASE
+                WHEN dp.finish_position IS NULL THEN 'did not classify'
+                WHEN p.median_clean_lap_s = r.reference_median_s THEN 'fastest on the day'
+                ELSE CONCAT(CAST(ROUND(100.0 * (p.median_clean_lap_s - r.reference_median_s)
+                                 / r.reference_median_s, 2) AS STRING), '% off the pace')
+            END                                                   AS pace_summary
+        FROM per_driver p
+        JOIN all_laps a
+          ON a.season = p.season AND a.round = p.round AND a.driver_id = p.driver_id
+        JOIN reference r
+          ON r.season = p.season AND r.round = p.round
+        JOIN {SILVER}.dim_race d
+          ON d.season = p.season AND d.round = p.round
+        LEFT JOIN {GOLD}.driver_performance dp
+          ON dp.season = p.season AND dp.round = p.round AND dp.driver_id = p.driver_id
+    """)

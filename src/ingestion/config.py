@@ -103,6 +103,7 @@ ROUND_ENDPOINTS = {
     # 53-lap race with 20 cars is ~1,008 records. Three seasons is ~780
     # requests against a 450/hour ceiling — the single most expensive endpoint,
     # and the reason RateBudget enforces the sustained limit.
+    "laps": "{season}/{round}/laps",
 }
 
 ALL_ENDPOINTS = {**SEASON_ENDPOINTS, **ROUND_ENDPOINTS}
@@ -124,4 +125,5 @@ ENDPOINT_SHAPE = {
     "driver_standings": ("StandingsTable", "StandingsLists"),
     "constructor_standings": ("StandingsTable", "StandingsLists"),
     "pitstops": ("RaceTable", "Races"),
+    "laps": ("RaceTable", "Races"),
 }

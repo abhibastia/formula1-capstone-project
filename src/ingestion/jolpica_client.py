@@ -208,6 +208,14 @@ def _count_records(records: list[dict[str, Any]], array_key: str) -> int:
     )
     total = 0
     for record in records:
+        # Laps nest one level deeper than anything else: a Races element holds
+        # Laps, and each lap holds Timings — one per driver. `total` counts the
+        # timings, so 5 laps on a page is 100 records, not 5. Counting the laps
+        # would compare 5 against a total of 1,008 and page until the API ran
+        # out of data.
+        if "Laps" in record:
+            total += sum(len(lap.get("Timings", [])) for lap in record["Laps"])
+            continue
         inner = [record[k] for k in inner_keys if k in record]
         # A Races element with no inner array is a schedule entry — count it as one.
         total += sum(len(i) for i in inner) if inner else 1

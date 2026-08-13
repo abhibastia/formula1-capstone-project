@@ -34,6 +34,48 @@ class TestCountRecords:
         races = [{"round": "16", "PitStops": [{}] * 30}]
         assert jc._count_records(races, "Races") == 30
 
+    def test_laps_count_their_timings_not_the_laps(self):
+        """Laps nest twice: a race holds laps, a lap holds one timing per
+        driver. `total` counts timings, so 5 laps of 20 drivers is 100 records.
+        Counting the laps would compare 5 against 1,008 and page forever."""
+        races = [{"round": "16", "Laps": [{"Timings": [{}] * 20} for _ in range(5)]}]
+        assert jc._count_records(races, "Races") == 100
+
+    def test_a_lap_with_no_timings_contributes_nothing(self):
+        races = [{"round": "16", "Laps": [{"number": "1"}]}]
+        assert jc._count_records(races, "Races") == 0
+
+    def test_eleven_pages_of_laps_need_eleven_requests(self, monkeypatch):
+        """The real shape: 1,008 timings at 100 per page."""
+        pages = []
+        for i in range(11):
+            n = 5 if i < 10 else 1                      # last page is short
+            pages.append({"MRData": {"total": "1008", "RaceTable": {"Races": [
+                {"Laps": [{"Timings": [{}] * 20} for _ in range(n)]}]}}})
+        calls = []
+
+        def fake_get(url):
+            calls.append(url)
+            return pages[min(len(calls) - 1, len(pages) - 1)]
+
+        monkeypatch.setattr(jc, "_get", fake_get)
+        jc.fetch_all("2024/16/laps")
+        assert len(calls) == 11, f"expected 11 requests, made {len(calls)}"
+
+    def test_a_single_page_of_pit_stops_needs_one_request(self, monkeypatch):
+        """The regression this guards: 30 stops in one page must not trigger a
+        second fetch."""
+        calls = []
+
+        def fake_get(url):
+            calls.append(url)
+            return {"MRData": {"total": "30",
+                               "RaceTable": {"Races": [{"PitStops": [{}] * 30}]}}}
+
+        monkeypatch.setattr(jc, "_get", fake_get)
+        jc.fetch_all("2024/16/pitstops")
+        assert len(calls) == 1, "counting the race instead of the stops costs a request per round"
+
     def test_mixed_pages_sum(self):
         races = [{"Results": [{}] * 20}, {"Results": [{}] * 18}]
         assert jc._count_records(races, "Races") == 38
