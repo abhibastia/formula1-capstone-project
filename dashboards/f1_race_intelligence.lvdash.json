@@ -74,6 +74,46 @@
         "       MAX(event_time)       AS last_run\n",
         "FROM e GROUP BY dataset_name, x.name"
       ]
+    },
+    {
+      "name": "ds_race_conditions",
+      "displayName": "Race conditions",
+      "queryLines": [
+        "SELECT season, round, race_name, circuit_name, circuit_country, race_date,\n",
+        "       weather_available, precipitation_mm, temp_max_c, wind_max_kmh,\n",
+        "       conditions, was_wet, rainfall_verdict,\n",
+        "       drivers_classified, retirements, retirement_rate_pct,\n",
+        "       avg_abs_positions_changed, winner, winning_constructor\n",
+        "FROM race_conditions\n"
+      ]
+    },
+    {
+      "name": "ds_strategy_race",
+      "displayName": "Strategy spread by race",
+      "queryLines": [
+        "SELECT season, round, race_name,\n",
+        "       MAX(field_stop_spread)  AS stop_spread,\n",
+        "       MAX(field_modal_stops)  AS modal_stops,\n",
+        "       MAX(field_min_stops)    AS min_stops,\n",
+        "       MAX(field_max_stops)    AS max_stops,\n",
+        "       ROUND(AVG(avg_service_stop_s), 2) AS avg_stop_s,\n",
+        "       COUNT(*)                AS drivers\n",
+        "FROM race_strategy\n",
+        "GROUP BY season, round, race_name\n"
+      ]
+    },
+    {
+      "name": "ds_strategy_payoff",
+      "displayName": "Did going off-strategy pay",
+      "queryLines": [
+        "SELECT season, strategy_vs_field,\n",
+        "       COUNT(*)                                  AS drivers,\n",
+        "       ROUND(AVG(positions_gained), 2)           AS avg_positions_gained,\n",
+        "       ROUND(100.0 * AVG(CASE WHEN finish_position <= 3 THEN 1.0 ELSE 0.0 END), 1) AS podium_pct\n",
+        "FROM race_strategy\n",
+        "WHERE finish_position IS NOT NULL\n",
+        "GROUP BY season, strategy_vs_field\n"
+      ]
     }
   ],
   "pages": [
@@ -582,6 +622,508 @@
             "y": 13,
             "width": 2,
             "height": 6
+          }
+        }
+      ]
+    },
+    {
+      "name": "page_conditions",
+      "displayName": "Race Conditions & Strategy",
+      "layout": [
+        {
+          "widget": {
+            "name": "filter_season_cond",
+            "queries": [
+              {
+                "name": "f_season",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "season",
+                      "expression": "`season`"
+                    },
+                    {
+                      "name": "season_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "season",
+                    "displayName": "Season",
+                    "queryName": "f_season"
+                  }
+                ]
+              },
+              "frame": {
+                "title": "Season",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_wet_races",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "sum(was_wet)",
+                      "expression": "SUM(CAST(`was_wet` AS INT))"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(was_wet)",
+                  "displayName": "Races flagged wet by rainfall"
+                }
+              },
+              "frame": {
+                "title": "Races flagged wet by rainfall",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_retirement_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "avg(retirement_rate_pct)",
+                      "expression": "AVG(`retirement_rate_pct`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(retirement_rate_pct)",
+                  "displayName": "Mean retirement rate %"
+                }
+              },
+              "frame": {
+                "title": "Mean retirement rate %",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_rain_vs_retirements",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "precipitation_mm",
+                      "expression": "`precipitation_mm`"
+                    },
+                    {
+                      "name": "retirement_rate_pct",
+                      "expression": "`retirement_rate_pct`"
+                    },
+                    {
+                      "name": "race_name",
+                      "expression": "`race_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "scatter",
+              "encodings": {
+                "x": {
+                  "fieldName": "precipitation_mm",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Rainfall on race day (mm)"
+                },
+                "y": {
+                  "fieldName": "retirement_rate_pct",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Retirement rate (%)"
+                },
+                "color": {
+                  "fieldName": "race_name",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Race"
+                }
+              },
+              "frame": {
+                "title": "Does rain cause chaos? Each point is a race",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "table_race_conditions",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "race_name",
+                      "expression": "`race_name`"
+                    },
+                    {
+                      "name": "precipitation_mm",
+                      "expression": "`precipitation_mm`"
+                    },
+                    {
+                      "name": "conditions",
+                      "expression": "`conditions`"
+                    },
+                    {
+                      "name": "rainfall_verdict",
+                      "expression": "`rainfall_verdict`"
+                    },
+                    {
+                      "name": "retirement_rate_pct",
+                      "expression": "`retirement_rate_pct`"
+                    },
+                    {
+                      "name": "avg_abs_positions_changed",
+                      "expression": "`avg_abs_positions_changed`"
+                    },
+                    {
+                      "name": "winner",
+                      "expression": "`winner`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "race_name",
+                    "displayName": "Race",
+                    "type": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  },
+                  {
+                    "fieldName": "precipitation_mm",
+                    "displayName": "Rain (mm)",
+                    "type": "float"
+                  },
+                  {
+                    "fieldName": "conditions",
+                    "displayName": "Conditions",
+                    "type": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  },
+                  {
+                    "fieldName": "rainfall_verdict",
+                    "displayName": "Verdict",
+                    "type": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  },
+                  {
+                    "fieldName": "retirement_rate_pct",
+                    "displayName": "Retired %",
+                    "type": "float"
+                  },
+                  {
+                    "fieldName": "avg_abs_positions_changed",
+                    "displayName": "Avg pos. change",
+                    "type": "float"
+                  },
+                  {
+                    "fieldName": "winner",
+                    "displayName": "Winner",
+                    "type": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  }
+                ]
+              },
+              "frame": {
+                "title": "Race conditions \u2014 wettest first",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_strategy_spread",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_strategy_race",
+                  "fields": [
+                    {
+                      "name": "race_name",
+                      "expression": "`race_name`"
+                    },
+                    {
+                      "name": "stop_spread",
+                      "expression": "`stop_spread`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "stop_spread",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Spread between fewest and most stops"
+                },
+                "y": {
+                  "fieldName": "race_name",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Race"
+                }
+              },
+              "frame": {
+                "title": "Where teams disagreed most on strategy",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 7,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "chart_strategy_payoff",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_strategy_payoff",
+                  "fields": [
+                    {
+                      "name": "strategy_vs_field",
+                      "expression": "`strategy_vs_field`"
+                    },
+                    {
+                      "name": "avg(avg_positions_gained)",
+                      "expression": "AVG(`avg_positions_gained`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "avg(avg_positions_gained)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Average positions gained"
+                },
+                "y": {
+                  "fieldName": "strategy_vs_field",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Strategy"
+                }
+              },
+              "frame": {
+                "title": "Did going off-strategy pay?",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 13,
+            "width": 3,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "table_strategy_race",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_strategy_race",
+                  "fields": [
+                    {
+                      "name": "race_name",
+                      "expression": "`race_name`"
+                    },
+                    {
+                      "name": "min_stops",
+                      "expression": "`min_stops`"
+                    },
+                    {
+                      "name": "max_stops",
+                      "expression": "`max_stops`"
+                    },
+                    {
+                      "name": "modal_stops",
+                      "expression": "`modal_stops`"
+                    },
+                    {
+                      "name": "avg_stop_s",
+                      "expression": "`avg_stop_s`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "race_name",
+                    "displayName": "Race",
+                    "type": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ]
+                  },
+                  {
+                    "fieldName": "min_stops",
+                    "displayName": "Fewest",
+                    "type": "integer"
+                  },
+                  {
+                    "fieldName": "max_stops",
+                    "displayName": "Most",
+                    "type": "integer"
+                  },
+                  {
+                    "fieldName": "modal_stops",
+                    "displayName": "Typical",
+                    "type": "integer"
+                  },
+                  {
+                    "fieldName": "avg_stop_s",
+                    "displayName": "Avg stop (s)",
+                    "type": "float"
+                  }
+                ]
+              },
+              "frame": {
+                "title": "Stops per race",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 13,
+            "width": 3,
+            "height": 5
           }
         }
       ]
