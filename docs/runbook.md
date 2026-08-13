@@ -11,8 +11,15 @@ to run it*. Every failure listed below has actually happened here.
 
 ```bash
 databricks auth login --host <workspace-url> --profile <profile>
+export DATABRICKS_PROFILE=<profile>       # every script reads this
 python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 ```
+
+No script here has a default profile. If you omit it they stop and list the
+profiles configured on the machine rather than picking one.
+
+`./scripts/bootstrap.sh --profile <profile>` does everything in this section
+end to end, prompting before the one step that spends compute.
 
 **The catalog must exist before anything else.** Free Edition cannot create
 catalogs over the API — `databricks catalogs create` fails with *"Metastore
@@ -21,7 +28,7 @@ warehouse. Make `f1` once in the UI: **Catalog → Create catalog → Default
 storage**. Schemas and Volumes are fine over the CLI:
 
 ```bash
-cd pipeline && ./scripts/create_catalog.sh
+./scripts/create_catalog.sh --profile <profile>
 ```
 
 ---
@@ -32,11 +39,17 @@ cd pipeline && ./scripts/create_catalog.sh
 
 ```bash
 databricks bundle deploy -t dev --profile <profile>
-databricks bundle run f1_ingest_incremental -t dev --profile <profile>
+databricks bundle run f1_end_to_end -t dev --profile <profile>
 ```
 
-The job runs `ingest` then `refresh_pipeline`, in that order and as one unit, so
-the pipeline never reads a landing zone that is mid-write.
+`f1_end_to_end` runs unit tests → ingest → pipeline → validation. The tests come
+first so a typo costs seconds instead of a cluster start; validation comes last
+so "the update completed" is not mistaken for "the marts reconcile". Ingest
+precedes the pipeline in the same run, so the pipeline never reads a landing
+zone that is mid-write.
+
+`f1_ingest_incremental` is the cheaper weekly job — ingest and refresh only, no
+tests, no validation. Use it for steady state, not after a code change.
 
 ### Run the ingest alone
 
