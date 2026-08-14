@@ -24,10 +24,11 @@ from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-# Catalog comes from the pipeline configuration so the bundle's `catalog`
-# variable actually controls where datasets land. Falls back to `f1` when the
-# pipeline is created outside the bundle.
-CATALOG = spark.conf.get("f1.catalog", "f1")
+# Catalog comes from the pipeline `configuration` block. No default on
+# purpose: a fallback of "f1" means a prod pipeline whose configuration is
+# missing or misspelled writes silently into the dev catalog instead of
+# failing, and nothing downstream can tell the difference afterwards.
+CATALOG = spark.conf.get("f1.catalog")
 BRONZE = f"{CATALOG}.bronze"
 SILVER = f"{CATALOG}.silver"
 GOLD = f"{CATALOG}.gold"
