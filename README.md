@@ -204,6 +204,33 @@ does not own the catalog or schemas — a `bundle destroy` that dropped them wou
 take the data with it. The script uses the UC permissions API, so it costs no
 compute and works with the daily quota exhausted.
 
+### Natural-language access — Genie
+
+`genie/f1_gold_space.json` defines a Genie agent scoped to the five Gold marts.
+It is version-controlled because a space configured only in the UI is a space
+nobody can rebuild.
+
+```bash
+databricks workspace mkdirs /Workspace/Users/<you>/genie_spaces --profile <name>
+databricks genie create-space --profile <name> --json "{
+  \"warehouse_id\": \"<warehouse-id>\",
+  \"title\": \"F1 Race Intelligence — Gold\",
+  \"parent_path\": \"/Workspace/Users/<you>/genie_spaces\",
+  \"serialized_space\": $(python3 -c 'import json;print(json.dumps(open("genie/f1_gold_space.json").read()))')
+}"
+```
+
+**Gold only, deliberately.** Point a natural-language agent at Silver and it
+will join a driver to their *current* team and report a 2024 result under the
+wrong constructor — plausible, formatted, and wrong. The marts already resolve
+the as-of-race-date join. `pytest` fails if the scope is ever widened.
+
+It carries five certified SQL examples, each executed against the warehouse
+before being committed, and one instruction block encoding the rules that change
+answers: always use `total_points`, never assume a driver's current team,
+`weather_available = false` means *no observation* rather than a dry race, and
+pace is ranked on `median_clean_lap_s` rather than finishing position.
+
 ### Configuration
 
 Copy `.env.example` to `.env` for local overrides. Everything has a working

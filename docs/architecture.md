@@ -529,6 +529,24 @@ Every contract assertion corresponds to a mistake that was actually made here
 and cost either a failed pipeline update or a dashboard tile that rendered
 nothing.
 
+### 6.1 Natural-language access
+
+A Genie agent (`genie/f1_gold_space.json`) sits over the five Gold marts and
+nothing else. The scope is the design decision: the marts resolve the
+as-of-race-date constructor join and pre-compute `total_points`, so an agent
+reading Silver would produce answers that are plausible, well-formatted and
+attributed to the wrong team.
+
+It reuses the grant model rather than bypassing it — queries run as the asker,
+so a consumer reaching the agent still cannot read Bronze.
+
+Five certified SQL examples teach the query patterns, and a single instruction
+block carries the domain rules that change answers. Both are asserted by
+`tests/test_genie_space.py`, which also enforces the API's own constraints
+(32-hex ids unique across three lists, array-valued text fields, at most one
+instruction entry, sorted lists) so a malformed definition fails locally rather
+than on a create call.
+
 ## 12. Deliberately out of scope
 
 - **Streaming.** The data arrives 24 times a year.
