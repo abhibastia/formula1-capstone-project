@@ -56,6 +56,57 @@ def test_scd2_columns_use_double_underscore():
     assert not re.search(r"(?<!_)_START_AT", gold), "single-underscore SCD-2 column"
 
 
+@pytest.mark.parametrize("path", PIPELINE_FILES, ids=lambda p: p.name)
+def test_catalog_has_no_silent_fallback(path):
+    """`spark.conf.get("f1.catalog")` must have no default.
+
+    A fallback of "f1" means a prod pipeline whose configuration block is
+    missing or misspelled writes into the dev catalog and reports success.
+    Nothing downstream can tell that happened afterwards — the tables are
+    simply in the wrong place, populated and plausible.
+    """
+    source = path.read_text()
+    assert not re.search(r'spark\.conf\.get\(\s*"f1\.catalog"\s*,', source), (
+        f"{path.name}: f1.catalog has a default; it must fail instead"
+    )
+
+
+def test_jobs_are_bounded_and_alert_on_failure():
+    """Every job needs a timeout and somewhere to shout.
+
+    On Free Edition compute is a daily allowance: a hung task spends
+    tomorrow's run as well as today's, and an unwatched failure is
+    indistinguishable from a healthy week with no new races.
+    """
+    import yaml  # noqa: PLC0415 — only this test needs it
+
+    for path in sorted((ROOT / "resources").glob("*.job.yml")):
+        jobs = (yaml.safe_load(path.read_text()) or {})["resources"]["jobs"]
+        for name, job in jobs.items():
+            assert job.get("timeout_seconds"), f"{name} has no timeout_seconds"
+            assert job.get("email_notifications", {}).get("on_failure"), (
+                f"{name} notifies nobody on failure"
+            )
+
+
+def test_scheduled_job_validates_its_output():
+    """The run that happens weekly must check correctness, not just finish.
+
+    Validation that only runs when a human asks is not a guarantee.
+    """
+    import yaml  # noqa: PLC0415
+
+    for path in sorted((ROOT / "resources").glob("*.job.yml")):
+        jobs = (yaml.safe_load(path.read_text()) or {})["resources"]["jobs"]
+        for name, job in jobs.items():
+            if "schedule" not in job:
+                continue
+            task_keys = {t["task_key"] for t in job["tasks"]}
+            assert "validate" in task_keys, (
+                f"{name} is scheduled but never validates its marts"
+            )
+
+
 def test_expectation_columns_resolve():
     """Delegates to the pre-flight checker, which walks every Silver file."""
     result = subprocess.run(

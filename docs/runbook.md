@@ -48,8 +48,18 @@ so "the update completed" is not mistaken for "the marts reconcile". Ingest
 precedes the pipeline in the same run, so the pipeline never reads a landing
 zone that is mid-write.
 
-`f1_ingest_incremental` is the cheaper weekly job — ingest and refresh only, no
-tests, no validation. Use it for steady state, not after a code change.
+`f1_ingest_incremental` is the cheaper weekly job — ingest, refresh and
+validate, but no unit tests, because the pipeline code cannot change between
+scheduled runs. Use it for steady state; use `f1_end_to_end` after a code
+change.
+
+Both jobs time out after an hour and email on failure. On Free Edition a hung
+task spends tomorrow's compute allowance as well as today's, and an unwatched
+failure is indistinguishable from a quiet week with no new races.
+
+Neither job hardcodes a season. `config.live_season()` is the calendar year and
+a routine run also revisits the previous season, because a December race stays
+open into January while results and lap times are still being corrected.
 
 ### Run the ingest alone
 

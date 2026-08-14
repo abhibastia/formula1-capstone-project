@@ -166,7 +166,9 @@ CHECKS = [
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--catalog", default="f1")
+    # Required, not defaulted. The job passes ${var.catalog}; a default would
+    # let a prod invocation quietly validate the dev catalog and report green.
+    parser.add_argument("--catalog", required=True)
     args = parser.parse_args()
 
     spark = SparkSession.builder.appName("f1-validation").getOrCreate()

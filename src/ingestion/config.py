@@ -5,6 +5,8 @@ value that may change (Free Edition may force a fallback catalog), so nothing
 downstream hard-codes it.
 """
 
+import datetime as dt
+
 CATALOG = "f1"
 RAW_SCHEMA = "raw"
 VOLUME = "landing"
@@ -47,9 +49,47 @@ WET_THRESHOLD_MM = 1.0
 # project makes. The throttle is politeness, not necessity.
 OPEN_METEO_REQUESTS_PER_SECOND = 5.0
 
-# Backfill seasons are complete and immutable; the live season is re-polled.
-BACKFILL_SEASONS = [2024, 2025]
-LIVE_SEASON = 2026
+# The first season this project covers. Everything above it is derived.
+#
+# This used to be `BACKFILL_SEASONS = [2024, 2025]` and `LIVE_SEASON = 2026`,
+# which is the worst kind of bug: on 1 January the weekly job keeps running,
+# keeps succeeding, and ingests nothing ever again. A job that does nothing
+# looks exactly like a job with nothing to do, so the platform would go stale
+# in silence and stay that way until somebody noticed the dashboard had stopped
+# moving.
+FIRST_SEASON = 2024
+
+
+def live_season(today: dt.date | None = None) -> int:
+    """The season currently running.
+
+    The calendar year. In January and February the new season has a published
+    schedule but no completed races, which costs one wasted calendar request
+    and lands nothing — the round loop skips races whose date is in the future.
+    """
+    return (today or dt.date.today()).year
+
+
+def backfill_seasons(today: dt.date | None = None) -> list[int]:
+    """Every season this project covers, oldest first."""
+    return list(range(FIRST_SEASON, live_season(today) + 1))
+
+
+def incremental_seasons(today: dt.date | None = None) -> list[int]:
+    """The seasons a routine run must look at: the current one and the last.
+
+    The previous season is included because a race in late December stays
+    *open* for CLOSED_AFTER_DAYS into January — results, standings and lap
+    times are all still being corrected. Dropping to the current season on
+    1 January would freeze that final round with whatever was published on the
+    day, and nothing downstream would ever revisit it.
+
+    It is close to free: a season whose rounds are all closed costs exactly one
+    request — the calendar — because `should_write` decides the rest from files
+    already on disk.
+    """
+    current = live_season(today)
+    return [current - 1, current] if current > FIRST_SEASON else [current]
 
 # Jolpica publishes two limits and they bind at different scales:
 #   * 4 requests/second burst  — REQUESTS_PER_SECOND handles this
