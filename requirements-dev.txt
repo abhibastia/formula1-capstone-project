@@ -13,6 +13,11 @@ pytest>=8.0
 # live workspace and so cannot run on a fork's pull request.
 pyyaml>=6.0
 
+# docs/deck/build_deck.py — generates the capstone presentation, and
+# tests/test_deck.py builds it to check no shape lands off the slide. The deck
+# tests skip themselves if this is absent.
+python-pptx>=1.0
+
 # setup_secrets.py only. Skip it if you are not provisioning a secret scope —
 # which is most people, since every data source here is keyless.
 databricks-sdk>=0.30

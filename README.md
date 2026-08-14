@@ -63,6 +63,8 @@ Gold    5 marts + event log      business-ready, dimensions joined as-of race da
 | `scripts/bootstrap.sh` | Clone → running platform, in one command |
 | `scripts/` | Catalog provisioning, upload, pipeline run/poll, executable validation |
 | `tests/` | Local suite (`pytest`) and the Spark suite that runs on Databricks |
+| `genie/` | Genie agent definition — natural-language access, scoped to Gold |
+| `docs/deck/build_deck.py` | The capstone presentation, generated — `python3 docs/deck/build_deck.py` |
 | `setup_secrets.py` | Secret scope provisioning — not needed today, see above |
 | `docs/architecture.md` | Design, decision record, and criteria coverage |
 | `CLAUDE.md` | Standing constraints — read before changing anything |
