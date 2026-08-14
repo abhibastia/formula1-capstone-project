@@ -420,6 +420,20 @@ Silver rule dictionaries are pure functions and the obvious first candidates.
   A separate project explores that direction. This one answers questions with
   SQL over a dashboard, and keeping it that way is what makes it maintainable.
 
+  That separate project left two tables behind in this catalog:
+  `f1.gold.agent_activity_analytics` and `f1.gold.agent_tool_calls`. They are
+  **not part of this platform** — no pipeline here writes them, no dashboard
+  reads them, and `validate_marts.py` ignores them. They are kept because that
+  work resumes later. Browsing `f1.gold` therefore shows eight objects where
+  this document describes five marts and an event log; those two are the
+  difference.
+
+  One consequence to carry forward: `SELECT` is granted on the `f1.gold`
+  *schema*, and Unity Catalog has no `DENY`, so any principal that can read the
+  marts can read those two tables as well. On a single-user workspace that is
+  nothing. Before a second person is added, move them to their own schema
+  first — the grant cannot be narrowed table by table.
+
 ## 13. Criteria coverage
 
 Assessed against the technical-execution minimum criteria.
