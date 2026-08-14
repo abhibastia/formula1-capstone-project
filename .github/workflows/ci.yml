@@ -29,9 +29,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -50,7 +50,7 @@ jobs:
   bundle:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Secrets are unavailable to fork PRs, so decide here rather than letting
       # the CLI fail on an empty host. Step-level `if` can read the secrets
@@ -58,8 +58,11 @@ jobs:
       - id: creds
         run: echo "present=${{ secrets.DATABRICKS_HOST != '' && secrets.DATABRICKS_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
 
+      # Pinned to a release rather than @main: the CLI is the one tool whose
+      # behaviour this repo depends on in detail, and a silent major bump is
+      # not something CI should discover on your behalf.
       - if: steps.creds.outputs.present == 'true'
-        uses: databricks/setup-cli@main
+        uses: databricks/setup-cli@v1.12.1
 
       - name: Bundle validates against a real workspace
         if: steps.creds.outputs.present == 'true'
