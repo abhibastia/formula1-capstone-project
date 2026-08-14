@@ -98,13 +98,20 @@ Editing `dashboards/*.lvdash.json` and deploying updates the **draft**. Viewers
 see the **published** copy, which does not change until you publish:
 
 ```bash
-databricks api post /api/2.0/lakeview/dashboards/<id>/published \
-  --json '{"embed_credentials": true, "warehouse_id": "<warehouse-id>"}' \
-  --profile <profile>
+databricks bundle summary -t dev --profile <profile>        # find the ids
+databricks lakeview publish <id> --warehouse-id <warehouse-id> --profile <profile>
 ```
 
-Forgetting this is why tiles look empty to everyone except the person who edited
-them.
+There are two dashboards and each publishes separately. Forgetting this is why
+tiles look empty to everyone except the person who edited them.
+
+**A blank tile is usually the spec, not the data.** Three causes, all of which
+have happened here and none of which produce a useful error: a `table` widget
+declared `version: 3` when the only supported version is 2; a filter querying
+`associative_filter_predicate_group`, which is not a column; and a field named
+`constructor`, which every JavaScript object inherits, so the encoding binds to
+`Object.prototype.constructor` and the tile silently draws nothing. `pytest`
+now fails on all three.
 
 ---
 
@@ -124,7 +131,11 @@ SELECT _quarantine_reason, count(*) FROM f1.silver.quarantine_<fact> GROUP BY 1;
 -- sql/dq_event_log.sql
 
 # Marts reconcile against published standings
--- sql/validation_checks.sql
+-- sql/validation_checks.sql          the narrative version, for reading
+python3 scripts/validate_marts.py --catalog f1    # the same checks, with an exit code
+
+# Who can read what
+python3 scripts/apply_grants.py --profile <profile> --show
 ```
 
 Run the tests before any long ingest — they need no cluster and take under a
@@ -262,10 +273,13 @@ databricks fs rm -r dbfs:/Volumes/f1/raw/landing/<endpoint>/season=<s>/round=<r>
 | Bronze | `f1.bronze.raw_<endpoint>` — one streaming table per endpoint |
 | Silver | `f1.silver.fact_*`, `dim_*`, `quarantine_*` |
 | Gold | `f1.gold.driver_performance`, `championship_progression`, `race_conditions`, `race_strategy`, `lap_pace` |
+| Not ours | `f1.gold.agent_activity_analytics`, `agent_tool_calls` — a separate project's, kept for later |
 | Pipeline event log | `f1.gold.pipeline_event_log` |
 | Ingestion code | `src/ingestion/` — plain modules, unit tested |
 | Pipeline code | `src/pipeline/` — Lakeflow declarative definitions |
-| Tests | `tests/` — no cluster, no network |
+| Tests | `tests/` — 129 local, no cluster or network; `tests/spark/` runs on Databricks |
+| Access model | `scripts/apply_grants.py` — idempotent, no compute |
+| Design record | `docs/architecture.md` — why, and what is still missing |
 
 ---
 
@@ -283,3 +297,12 @@ databricks fs rm -r dbfs:/Volumes/f1/raw/landing/<endpoint>/season=<s>/round=<r>
 - **The wettest race has the lowest retirement rate.** Also the finding. Monza
   2024 measured 19.1 mm and ran dry, because a daily total cannot tell rain that
   fell overnight from rain that fell during the race.
+- **The quarantine census is not zero and should not be.** 69 lap rows fail
+  `plausible_lap_time` — red-flag and safety-car laps outside 40–300 s — plus 8
+  standings rows with no championship position and 2 pit stops published with an
+  empty duration. Zero everywhere would mean the expectations had stopped being
+  evaluated.
+- **`f1.gold` holds eight objects where the docs describe six.** Two belong to a
+  separate agent project. Nothing here writes or reads them.
+- **`table_changes()` returns nothing.** Change Data Feed was designed but never
+  enabled; `docs/architecture.md` §5.4 has the detail.

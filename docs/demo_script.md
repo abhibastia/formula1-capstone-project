@@ -25,9 +25,9 @@ wrapping the untouched `MRData`.
 
 **3. The pipeline and lineage (45s)**
 
-Open the pipeline DAG, then the Unity Catalog lineage graph: Volume → 8 Bronze →
-Silver facts and dimensions → 2 Gold marts → dashboard. One pipeline, three
-schemas.
+Open the pipeline DAG, then the Unity Catalog lineage graph: Volume → 11 Bronze
+→ 8 Silver facts and 3 dimensions → 5 Gold marts → two dashboards. One pipeline,
+three schemas.
 
 **4. Data quality — show it catching something (60s)** ← *the important beat*
 
