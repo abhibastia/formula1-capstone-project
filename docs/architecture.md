@@ -17,7 +17,7 @@ rather than read a summary of it: reporters checking a claim before publishing,
 and fans arguing about whether a result was earned or inherited.
 
 That audience determines the architecture more than the data volume does. The
-data is small — three seasons, roughly 1,200 race results — so nothing here is
+data is small — three seasons so far, roughly 1,200 race results — so nothing here is
 sized for scale. It is sized for **trust**: every number on the dashboard has to
 be traceable to a raw API payload, and a wrong number has to be findable rather
 than merely absent.
@@ -332,7 +332,7 @@ Gold would be the next step.
 
 ## 7. Orchestration
 
-Lakeflow Jobs. `f1_ingest_incremental` runs two tasks in order:
+Lakeflow Jobs. `f1_ingest_incremental` runs three tasks in order:
 
 ```
 ingest  ->  refresh_pipeline (depends_on: ingest)

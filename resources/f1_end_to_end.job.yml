@@ -28,6 +28,9 @@ resources:
           spark_python_task:
             python_file: ../tests/spark/test_pipeline_transforms.py
           environment_key: serverless_default
+          # No retries: a failing assertion fails identically the second time,
+          # and re-running it only delays the report.
+          timeout_seconds: 900
 
         - task_key: ingest
           depends_on:
@@ -40,6 +43,9 @@ resources:
               - --root
               - ${var.landing_root}
           environment_key: serverless_default
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 2700
 
         - task_key: refresh_pipeline
           depends_on:
@@ -59,6 +65,7 @@ resources:
               - --catalog
               - ${var.catalog}
           environment_key: serverless_default
+          timeout_seconds: 900
 
       environments:
         - environment_key: serverless_default
@@ -66,3 +73,11 @@ resources:
             client: "3"
 
       max_concurrent_runs: 1
+
+      # See f1_ingest.job.yml: on Free Edition a hung task spends tomorrow's
+      # allowance too, and silently.
+      timeout_seconds: 3600
+
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}

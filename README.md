@@ -7,7 +7,8 @@ AI/BI dashboard. Built as a data-engineering capstone.
 ## What it does
 
 A scheduled job pulls ten Jolpica-F1 endpoints plus measured race-day weather
-from the Open-Meteo ERA5 archive, for three seasons, into a Unity Catalog Volume
+from the Open-Meteo ERA5 archive, for every season since 2024, into a Unity
+Catalog Volume
 as raw JSON. A single triggered Lakeflow pipeline parses, cleans,
 deduplicates and quality-checks that data through a medallion architecture,
 maintains SCD Type 2 driver and constructor dimensions, and publishes five Gold
@@ -114,7 +115,7 @@ prints `error.exceptions[0].message` — the top-level message only ever says
 | Job | When | What |
 |---|---|---|
 | `f1_end_to_end` | on demand | unit tests → ingest → pipeline → validation. Run this after changing pipeline code. |
-| `f1_ingest_incremental` | weekly, Tue 06:00 UTC (paused in dev) | ingest → pipeline. The cheap steady-state run. |
+| `f1_ingest_incremental` | weekly, Tue 06:00 UTC (paused in dev) | ingest → pipeline → validation. The steady-state run. |
 
 ### Testing
 
