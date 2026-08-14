@@ -147,6 +147,43 @@ Validation is executable too: `scripts/validate_marts.py` runs the checks in
 `sql/validation_checks.sql` and exits non-zero, and is the last task of
 `f1_end_to_end`. A green pipeline update is not the bar; reconciliation is.
 
+### Access control
+
+```bash
+python3 scripts/apply_grants.py --profile <name> --dry-run   # show the diff
+python3 scripts/apply_grants.py --profile <name>             # apply
+python3 scripts/apply_grants.py --profile <name> --show      # read back
+```
+
+Read access narrows as the data gets rawer, which is the argument for a
+medallion layout in the first place:
+
+| Principal | Catalog | Gold | Silver / Bronze | Landing Volume |
+|---|---|---|---|---|
+| `account users` | `USE_CATALOG` | `SELECT` | — | — |
+| `--engineers <group>` | `USE_CATALOG` | `SELECT` | `SELECT` | `READ_VOLUME` |
+| owner | everything by ownership | | | |
+
+An analyst can query `f1.gold.driver_performance` and **cannot** read the Bronze
+payload it came from or the raw JSON behind it. That is the demonstrable half of
+governance — not that permissions exist, but that they differ by layer and you
+can prove which.
+
+Two constraints worth knowing. Unity Catalog resolves **account-level** groups
+and user emails only: this workspace lists `admins` and `users` under
+`databricks groups list` and UC rejects both with *"Could not find principal"*.
+So the engineer tier is a parameter — omit it on a single-user workspace and
+those layers stay owner-only, which is the right answer there. And nobody is
+ever granted `WRITE_VOLUME`: the landing zone has exactly one writer, the
+ingestion job, because a second writer breaks the idempotency contract that lets
+Silver deduplicate on the newest `_ingest_ts`.
+
+Grants live with `create_catalog.sh` rather than in the bundle, on the same
+boundary: the bundle owns the pipeline, jobs and dashboards, and deliberately
+does not own the catalog or schemas — a `bundle destroy` that dropped them would
+take the data with it. The script uses the UC permissions API, so it costs no
+compute and works with the daily quota exhausted.
+
 ### Configuration
 
 Copy `.env.example` to `.env` for local overrides. Everything has a working

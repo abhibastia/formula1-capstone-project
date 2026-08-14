@@ -31,6 +31,12 @@ storage**. Schemas and Volumes are fine over the CLI:
 ./scripts/create_catalog.sh --profile <profile>
 ```
 
+Then apply the access model — no compute, safe to re-run:
+
+```bash
+python3 scripts/apply_grants.py --profile <profile>
+```
+
 ---
 
 ## 2. Normal operation
