@@ -2,14 +2,16 @@
 
 A governed, end-to-end data pipeline on Databricks Free Edition: public F1 APIs →
 Unity Catalog Volume → Lakeflow Declarative Pipeline (Bronze → Silver → Gold) →
-AI/BI dashboard. Built as a data-engineering capstone.
+AI/BI dashboards. Built as a data-engineering capstone.
+
+`docs/architecture.md` is the design and decision record — why each dataset type
+was chosen, what was considered and rejected, and where the gaps still are.
 
 ## What it does
 
 A scheduled job pulls ten Jolpica-F1 endpoints plus measured race-day weather
 from the Open-Meteo ERA5 archive, for every season since 2024, into a Unity
-Catalog Volume
-as raw JSON. A single triggered Lakeflow pipeline parses, cleans,
+Catalog Volume as raw JSON. A single triggered Lakeflow pipeline parses, cleans,
 deduplicates and quality-checks that data through a medallion architecture,
 maintains SCD Type 2 driver and constructor dimensions, and publishes five Gold
 marts that two dashboards read. Everything is governed by Unity Catalog; nothing
@@ -36,15 +38,16 @@ Gold    5 marts + event log      business-ready, dimensions joined as-of race da
 |---|---|
 | `src/ingestion/` | API client, landing writer, job entry point |
 | `src/pipeline/` | Lakeflow pipeline: `01_bronze` → `04_gold` |
+| `scripts/apply_grants.py` | The Unity Catalog access model, idempotent, no compute |
 | `sql/validation_checks.sql` | Correctness checks — the bar for "done" |
 | `sql/dq_event_log.sql` | Data-quality metrics from the pipeline event log |
-| `dashboards/` | AI/BI dashboard definition |
-| `databricks.yml`, `resources/` | Asset Bundle: pipeline, job and dashboard as code |
+| `dashboards/` | Two AI/BI dashboard definitions |
+| `databricks.yml`, `resources/` | Asset Bundle: pipeline, two jobs and two dashboards as code |
 | `scripts/bootstrap.sh` | Clone → running platform, in one command |
 | `scripts/` | Catalog provisioning, upload, pipeline run/poll, executable validation |
 | `tests/` | Local suite (`pytest`) and the Spark suite that runs on Databricks |
 | `setup_secrets.py` | Secret scope provisioning — not needed today, see above |
-| `ACTION_PLAN.md` | Full build plan, decisions, and acceptance criteria |
+| `docs/architecture.md` | Design, decision record, and criteria coverage |
 | `CLAUDE.md` | Standing constraints — read before changing anything |
 
 ## Quickstart
@@ -229,3 +232,11 @@ double-counts.
   stint analysis is possible from Jolpica; tyre strategy is not.
 - Jolpica is community-maintained. Raw JSON is cached in the Volume so the
   pipeline never depends on the API being up.
+- **Change Data Feed is not enabled**, so `table_changes()` answers nothing.
+  Enabling it is one table property and is the largest remaining gap — see
+  §5.4 of `docs/architecture.md`.
+- **The access model cannot be demonstrated on this workspace.** Grants are
+  applied and correct, but the owner's ownership outranks every one of them, so
+  proving the layering needs a second identity that owns nothing.
+- `f1_prod` is wired in the bundle but its catalog does not exist. Free Edition
+  cannot create catalogs over the API.

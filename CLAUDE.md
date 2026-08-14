@@ -1,8 +1,9 @@
 # F1 Race Intelligence Platform — working constraints
 
 Databricks Free Edition capstone. Ingestion → medallion (Bronze/Silver/Gold) →
-AI/BI dashboard, governed by Unity Catalog. `ACTION_PLAN.md` holds the full plan;
-this file holds the decisions that are expensive to rediscover.
+AI/BI dashboards, governed by Unity Catalog. `docs/architecture.md` is the
+design and decision record; this file holds the decisions that are expensive to
+rediscover.
 
 ## Environment
 
