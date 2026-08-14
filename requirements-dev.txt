@@ -1,3 +1,18 @@
-# Test dependencies. The ingestion modules use only the standard library, so
-# nothing here is needed to run the pipeline — only to test it.
+# Development-only dependencies. The pipeline and the ingestion job need none
+# of this: ingestion uses only the standard library, and the pipeline runs on
+# Databricks where Spark and the SDK already exist.
+#
+# pyspark is deliberately absent. The Spark-backed pipeline tests
+# (tests/spark/) run on Databricks as a task of f1_end_to_end, so contributors
+# do not need a JVM installed to run `pytest` on a clean checkout.
+
 pytest>=8.0
+
+# tests/test_bundle_contracts.py parses databricks.yml and resources/*.yml.
+# Those checks are what CI runs in place of `bundle validate`, which needs a
+# live workspace and so cannot run on a fork's pull request.
+pyyaml>=6.0
+
+# setup_secrets.py only. Skip it if you are not provisioning a secret scope —
+# which is most people, since every data source here is keyless.
+databricks-sdk>=0.30

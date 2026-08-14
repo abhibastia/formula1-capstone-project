@@ -10,12 +10,12 @@
 # ever says "Update X is FAILED", which tells you nothing.
 #
 # Usage:
-#     ./scripts/run_pipeline.sh <pipeline_id> [--full-refresh]
+#     ./scripts/run_pipeline.sh <pipeline_id> [--full-refresh] --profile <name>
 
-set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
+preflight "$@"
 
-PROFILE="${DATABRICKS_PROFILE:-abhi}"
-PIPELINE_ID="${1:?usage: run_pipeline.sh <pipeline_id> [--full-refresh]}"
+PIPELINE_ID="${1:?usage: run_pipeline.sh <pipeline_id> [--full-refresh] --profile <name>}"
 shift || true
 
 REFRESH_FLAG=()

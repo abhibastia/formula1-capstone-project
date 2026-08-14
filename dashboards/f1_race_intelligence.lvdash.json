@@ -5,7 +5,7 @@
       "displayName": "Championship progression",
       "queryLines": [
         "SELECT season, round, race_date, race_name, driver_id, driver_name,\n",
-        "       constructor_name_as_of_race AS constructor, cumulative_points,\n",
+        "       constructor_name_as_of_race AS team, cumulative_points,\n",
         "       championship_position, gap_to_leader, points_gained_in_round,\n",
         "       position_change_vs_prev_round\n",
         "FROM championship_progression"
@@ -17,7 +17,7 @@
       "queryLines": [
         "SELECT season, round, race_date, race_name, circuit_name, circuit_country,\n",
         "       driver_id, driver_name, driver_code,\n",
-        "       constructor_name_as_of_race AS constructor,\n",
+        "       constructor_name_as_of_race AS team,\n",
         "       grid_position, finish_position, positions_gained,\n",
         "       race_points, sprint_points, total_points, laps_completed,\n",
         "       status, dnf_flag, is_win, is_podium, is_points_finish,\n",
@@ -29,7 +29,7 @@
       "name": "ds_driver_season",
       "displayName": "Driver season summary",
       "queryLines": [
-        "SELECT season, driver_name, constructor_name_as_of_race AS constructor,\n",
+        "SELECT season, driver_name, constructor_name_as_of_race AS team,\n",
         "       COUNT(*)                                    AS races,\n",
         "       SUM(total_points)                           AS points,\n",
         "       SUM(CASE WHEN is_win THEN 1 ELSE 0 END)     AS wins,\n",
@@ -45,7 +45,7 @@
       "name": "ds_constructor_season",
       "displayName": "Constructor season points",
       "queryLines": [
-        "SELECT season, constructor_name_as_of_race AS constructor,\n",
+        "SELECT season, constructor_name_as_of_race AS team,\n",
         "       SUM(total_points) AS points,\n",
         "       SUM(CASE WHEN is_win THEN 1 ELSE 0 END) AS wins\n",
         "FROM driver_performance\n",
@@ -133,10 +133,6 @@
                     {
                       "name": "season",
                       "expression": "`season`"
-                    },
-                    {
-                      "name": "season_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
                     }
                   ],
                   "disaggregated": false
@@ -366,7 +362,7 @@
                 }
               },
               "frame": {
-                "title": "Grid vs finish \u2014 who gains places",
+                "title": "Grid vs finish — who gains places",
                 "showTitle": true
               }
             }
@@ -388,8 +384,8 @@
                   "datasetName": "ds_constructor_season",
                   "fields": [
                     {
-                      "name": "constructor",
-                      "expression": "`constructor`"
+                      "name": "team",
+                      "expression": "`team`"
                     },
                     {
                       "name": "sum(points)",
@@ -405,14 +401,18 @@
               "widgetType": "bar",
               "encodings": {
                 "x": {
-                  "fieldName": "sum(points)",
                   "scale": {
                     "type": "quantitative"
                   },
-                  "displayName": "Points"
+                  "fields": [
+                    {
+                      "fieldName": "sum(points)",
+                      "displayName": "Points"
+                    }
+                  ]
                 },
                 "y": {
-                  "fieldName": "constructor",
+                  "fieldName": "team",
                   "scale": {
                     "type": "categorical"
                   },
@@ -446,8 +446,8 @@
                       "expression": "`driver_name`"
                     },
                     {
-                      "name": "constructor",
-                      "expression": "`constructor`"
+                      "name": "team",
+                      "expression": "`team`"
                     },
                     {
                       "name": "points",
@@ -479,7 +479,7 @@
               }
             ],
             "spec": {
-              "version": 3,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -493,7 +493,7 @@
                     "type": "string"
                   },
                   {
-                    "fieldName": "constructor",
+                    "fieldName": "team",
                     "displayName": "Constructor",
                     "booleanValues": [
                       "false",
@@ -577,7 +577,7 @@
               }
             ],
             "spec": {
-              "version": 3,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -612,7 +612,7 @@
                 ]
               },
               "frame": {
-                "title": "Data quality \u2014 expectations per run",
+                "title": "Data quality — expectations per run",
                 "showTitle": true
               }
             }
@@ -642,10 +642,6 @@
                     {
                       "name": "season",
                       "expression": "`season`"
-                    },
-                    {
-                      "name": "season_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
                     }
                   ],
                   "disaggregated": false
@@ -865,7 +861,7 @@
               }
             ],
             "spec": {
-              "version": 3,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [
@@ -923,7 +919,7 @@
                 ]
               },
               "frame": {
-                "title": "Race conditions \u2014 wettest first",
+                "title": "Race conditions — wettest first",
                 "showTitle": true
               }
             }
@@ -962,11 +958,15 @@
               "widgetType": "bar",
               "encodings": {
                 "x": {
-                  "fieldName": "stop_spread",
                   "scale": {
                     "type": "quantitative"
                   },
-                  "displayName": "Spread between fewest and most stops"
+                  "fields": [
+                    {
+                      "fieldName": "stop_spread",
+                      "displayName": "Spread between fewest and most stops"
+                    }
+                  ]
                 },
                 "y": {
                   "fieldName": "race_name",
@@ -1016,11 +1016,15 @@
               "widgetType": "bar",
               "encodings": {
                 "x": {
-                  "fieldName": "avg(avg_positions_gained)",
                   "scale": {
                     "type": "quantitative"
                   },
-                  "displayName": "Average positions gained"
+                  "fields": [
+                    {
+                      "fieldName": "avg(avg_positions_gained)",
+                      "displayName": "Average positions gained"
+                    }
+                  ]
                 },
                 "y": {
                   "fieldName": "strategy_vs_field",
@@ -1078,7 +1082,7 @@
               }
             ],
             "spec": {
-              "version": 3,
+              "version": 2,
               "widgetType": "table",
               "encodings": {
                 "columns": [

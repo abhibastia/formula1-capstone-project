@@ -15,27 +15,35 @@ bundle:
 include:
   - resources/*.yml
 
+# Every workspace-specific value is a variable with a working default, so a
+# fork needs no edit to this file: override with `--var`, or export
+# BUNDLE_VAR_<name>. `.env.example` lists all four and how to find them.
 variables:
   catalog:
     description: Unity Catalog catalog holding the bronze/silver/gold schemas.
     default: f1
   landing_root:
     description: UC Volume path holding the raw Jolpica JSON payloads.
-    default: /Volumes/f1/raw/landing
+    default: /Volumes/${var.catalog}/raw/landing
   warehouse_id:
-    description: SQL warehouse backing the AI/BI dashboard.
+    description: >-
+      SQL warehouse backing the AI/BI dashboards. Find yours with
+      `databricks warehouses list --profile <profile>`.
     default: 6797e114217fa513
 
 targets:
   # Default target. `mode: development` prefixes resource names with
   # [dev <user>], pauses all schedules, and puts the pipeline in development
   # mode — which is what you want while iterating on a limited compute budget.
+  #
+  # Neither `host:` nor `profile:` here, on purpose. Both come from the CLI
+  # profile you pass, so a fork deploys to its own workspace with no edit to
+  # this file. `host:` cannot be a variable — it is resolved before variables
+  # exist — so hardcoding it is the one thing that would break a fork.
+  # Pass `--profile <name>`, or export DATABRICKS_CONFIG_PROFILE.
   dev:
     default: true
     mode: development
-    workspace:
-      host: https://dbc-6b3a5534-db75.cloud.databricks.com
-      profile: abhi
 
   # Production target. It deliberately points at a *different* catalog: on Free
   # Edition there is only one workspace, so if prod shared `f1` both targets
@@ -44,8 +52,6 @@ targets:
   prod:
     mode: production
     workspace:
-      host: https://dbc-6b3a5534-db75.cloud.databricks.com
-      profile: abhi
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: f1_prod
