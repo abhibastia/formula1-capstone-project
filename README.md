@@ -7,6 +7,23 @@ AI/BI dashboards. Built as a data-engineering capstone.
 `docs/architecture.md` is the design and decision record — why each dataset type
 was chosen, what was considered and rejected, and where the gaps still are.
 
+## Who it is for
+
+People who follow Formula 1 and want to **interrogate** a season rather than read
+a summary of it:
+
+- **Reporters** checking a claim before publishing — was that win earned on pace
+  or inherited in the pit lane, and did the stewards change the result after the
+  flag.
+- **Fans and analysts** arguing about whether a driver was actually quick, which
+  the points table cannot answer: 150 driver-races in this dataset finished at
+  least three places behind their own pace.
+
+That audience drives the architecture more than the data volume does. The data is
+small — roughly 1,200 race results — so nothing here is sized for scale. It is
+sized for **trust**: every number on a dashboard traces back to a raw API
+payload, and a wrong number has to be findable rather than merely absent.
+
 ## What it does
 
 A scheduled job pulls ten Jolpica-F1 endpoints plus measured race-day weather
