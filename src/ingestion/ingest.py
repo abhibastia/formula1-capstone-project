@@ -47,9 +47,9 @@ sys.path.insert(0, _module_dir())
 
 from config import (
     ALL_ENDPOINTS,
-    BACKFILL_SEASONS,
+    backfill_seasons,
     BASE_URL,
-    LIVE_SEASON,
+    incremental_seasons,
     ROUND_ENDPOINTS,
     SEASON_ENDPOINTS,
     VOLUME_ROOT,
@@ -231,9 +231,8 @@ def main() -> int:
         level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s"
     )
 
-    seasons = (
-        [*BACKFILL_SEASONS, LIVE_SEASON] if args.mode == "backfill" else [LIVE_SEASON]
-    )
+    # Both are derived from today's date, never hardcoded — see config.py.
+    seasons = backfill_seasons() if args.mode == "backfill" else incremental_seasons()
     log.info("mode=%s seasons=%s root=%s", args.mode, seasons, args.root)
     log.info("endpoints: %s", ", ".join(sorted(ALL_ENDPOINTS)))
 
