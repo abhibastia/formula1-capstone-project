@@ -1,15 +1,22 @@
 # Everything that can be checked without a Databricks workspace.
 #
-# Deliberately no credentials and no compute: this runs on every push and pull
-# request, and a CI job that needs a workspace secret is a CI job that never
-# runs on a fork. The workspace-side checks — the Spark unit tests and the mart
-# validation — are tasks of the `f1_end_to_end` job instead, where the compute
-# they need already exists.
+# The point of the split: a pull request from a fork has no access to repository
+# secrets, so anything needing credentials cannot run there. The `test` job is
+# therefore credential-free and is the one that gates every PR. `bundle` needs a
+# real workspace and skips itself when the secrets are absent — a skipped job is
+# honest; a job that fails on every fork PR trains people to ignore CI.
+#
+# `databricks bundle validate` is NOT an offline check. With `mode: development`
+# it resolves root_path from ${workspace.current_user.userName}, which is a live
+# SCIM call: pointed at a dummy host it fails with a DNS error rather than a
+# validation result. The offline half of what it would catch — every resource
+# path exists, every ${var.*} is declared, every ${resources.*} reference
+# resolves — lives in tests/test_bundle_contracts.py and runs in the `test` job.
 #
 # What this would have caught, had it existed: a pipeline file using the legacy
-# `dlt` API, a dashboard tile pinned to the wrong widget version, an expectation
-# naming a column its staged view does not emit, and a workspace host hardcoded
-# into databricks.yml.
+# `dlt` API, a dashboard tile pinned to the wrong widget version, a field named
+# `constructor`, an expectation naming a column its staged view does not emit,
+# and a workspace host hardcoded into databricks.yml.
 
 name: CI
 
@@ -31,7 +38,7 @@ jobs:
       - name: Install test dependencies
         run: pip install -r requirements-dev.txt
 
-      - name: Unit and contract tests
+      - name: Unit, contract and bundle-structure tests
         run: pytest
 
       - name: Expectation pre-flight
@@ -45,13 +52,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: databricks/setup-cli@main
+      # Secrets are unavailable to fork PRs, so decide here rather than letting
+      # the CLI fail on an empty host. Step-level `if` can read the secrets
+      # context; job-level `if` cannot.
+      - id: creds
+        run: echo "present=${{ secrets.DATABRICKS_HOST != '' && secrets.DATABRICKS_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
 
-      # Validates structure, variable references and resource wiring. It does
-      # not contact a workspace, so no secret is needed — and that is the point:
-      # a malformed databricks.yml should fail here, not on someone's deploy.
-      - name: Bundle validates
-        run: databricks bundle validate -t dev
+      - if: steps.creds.outputs.present == 'true'
+        uses: databricks/setup-cli@main
+
+      - name: Bundle validates against a real workspace
+        if: steps.creds.outputs.present == 'true'
+        run: databricks bundle validate --strict -t dev
         env:
-          DATABRICKS_HOST: https://example.cloud.databricks.com
-          DATABRICKS_TOKEN: dummy-token-for-offline-validation
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+      - name: Explain the skip
+        if: steps.creds.outputs.present != 'true'
+        run: |
+          echo "Skipped: DATABRICKS_HOST / DATABRICKS_TOKEN are not set."
+          echo "bundle validate needs a live workspace — it resolves the current"
+          echo "user over SCIM. The offline checks ran in the 'test' job."

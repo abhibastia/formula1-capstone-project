@@ -8,6 +8,11 @@
 
 pytest>=8.0
 
+# tests/test_bundle_contracts.py parses databricks.yml and resources/*.yml.
+# Those checks are what CI runs in place of `bundle validate`, which needs a
+# live workspace and so cannot run on a fork's pull request.
+pyyaml>=6.0
+
 # setup_secrets.py only. Skip it if you are not provisioning a secret scope —
 # which is most people, since every data source here is keyless.
 databricks-sdk>=0.30
