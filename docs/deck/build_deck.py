@@ -152,6 +152,32 @@ def points(s, top, items, size=15, gap=15, width=None, head_color=TEXT):
     return f
 
 
+ASSETS = Path(__file__).resolve().parent / "assets"
+
+
+def screenshot(s, name, aspect, notes, top=Inches(2.0), caption=None):
+    """A UI screenshot on the right, what to look at on the left.
+
+    Full-bleed screenshots read as decoration. Pairing one with the two or
+    three things worth noticing turns it into evidence.
+    """
+    path = ASSETS / name
+    assert path.exists(), f"missing deck asset: {path}"
+    text_w = Inches(3.5)
+    img_w = BW - text_w - Inches(0.4)
+    img_h = img_w / aspect
+    s.shapes.add_picture(str(path), M + text_w + Inches(0.4), top,
+                         width=int(img_w), height=int(img_h))
+    f = tf(s, M, top + Inches(0.05), text_w, H - top - Inches(1.0))
+    for i, (head, body) in enumerate(notes):
+        para(f, head, 13.5, TEAL, bold=True, first=(i == 0), after=3,
+             before=0 if i == 0 else 12)
+        para(f, body, 11.5, MUTED, after=0, space=1.2)
+    if caption:
+        cf = tf(s, M + text_w + Inches(0.4), top + img_h + Inches(0.12), img_w, Inches(0.4))
+        para(cf, caption, 10.5, MUTED, first=True, after=0)
+
+
 def statgrid(s, top, rows, cols=4, h=Inches(1.35)):
     gap = Inches(0.24)
     w = (BW - gap * (cols - 1)) / cols
@@ -494,34 +520,39 @@ points(s, top, [
      "Stints are derived from stops, because nothing publishes them: two stops means three stints. 'Two stops' alone means nothing; 'two stops when the field made three' is the story."),
 ], size=15, gap=10)
 
-# ══════════════════════ 16 · future scope ══════════════════════
-s, top = page("Next", "From dashboards to a copilot", 16)
-lead(s, top, "The marts are the product. The next step is who else can reach them.",
-     "Everything below reads the same Gold layer — no second copy of the data, no new pipeline.")
-cards = [
-    ("Fan & reporter app", "Databricks Apps front end over the Genie agent: ask in plain English, get the number and the query behind it.", BLUE),
-    ("Semantic search", "Vector Search over race reports and regulations, so 'why was he penalised' returns the text, not a row.", BLUE),
-    ("Standings & weather explorer", "Every season's championship progression and measured race-day conditions, on demand.", BLUE),
-    ("Amendment history", "Answering what the stewards changed needs the Silver facts as streaming tables — a real trade, not a checkbox.", AMBER),
-]
-gap = Inches(0.24)
-cw = (BW - gap * 3) / 4
-for i, (title, sub, col) in enumerate(cards):
-    l = M + i * (cw + gap)
-    card(s, l, Inches(3.7), cw, Inches(1.85))
-    strip = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, l, Inches(3.7), cw, Inches(0.05))
-    strip.fill.solid(); strip.fill.fore_color.rgb = col
-    strip.line.fill.background(); strip.shadow.inherit = False
-    f = tf(s, l + Inches(0.22), Inches(3.95), cw - Inches(0.44), Inches(1.5))
-    para(f, title, 13.5, TEXT, bold=True, first=True, after=5)
-    para(f, sub, 11, MUTED, after=0, space=1.18)
-f = tf(s, M, Inches(5.85), BW, Inches(0.8))
-para(f, "The Genie agent already answers questions over Gold today, governed by the same grants. The app is the front "
-        "door for people who will never open a Databricks workspace. SCD-2 already gives version history on the "
-        "dimensions — 42 driver versions, queryable now.", 13, TEAL, first=True, after=0, space=1.2)
+# ══════════════════════ 16 · downstream: the copilot ══════════════════════
+s, top = page("Downstream", "The Gold layer already feeds more than a dashboard", 16)
+screenshot(s, "copilot-overview.png", 1.837, [
+    ("A working prototype, not a finished product",
+     "F1 Strategy Copilot is a separate project and an early one — a Databricks App with "
+     "embeddings and vector search. Parts work end to end; parts do not. It is out of scope "
+     "for this capstone by decision (ADR 0009), and it reads these Gold marts."),
+    ("The numbers are this pipeline's",
+     "1,200 race results, 59 weather observations, 22 wet races, 3 seasons. Every figure on "
+     "that page traces back through Silver to a raw API payload."),
+    ("Which is the point of a serving layer",
+     "A dashboard was never meant to be the only consumer. The marts resolve the as-of-race "
+     "joins once, so anything downstream — a tile, a Genie answer, a prototype app — starts "
+     "from the same numbers rather than re-deriving them."),
+], caption="F1 Strategy Copilot — separate project, prototype · Databricks Apps · reads f1.gold")
 
-# ══════════════════════ 17 · gaps ══════════════════════
-s, top = page("Candour", "What is not done", 17)
+# ══════════════════════ 17 · downstream: semantic search ══════════════════════
+s, top = page("Downstream", "Ask it in words the schema never anticipated", 17)
+screenshot(s, "semantic-search.png", 1.937, [
+    ("\"chaotic wet race decided by a safety car\"",
+     "No column holds that. Vector search over 58 race reports returns São Paulo 2024 at "
+     "17.9 mm and Belgium 2025 at 10.3 mm — found by meaning, not keywords."),
+    ("Each hit carries the measured weather",
+     "The rainfall badge on every result comes from race_conditions in this pipeline, so the "
+     "story and the observation can be compared rather than assumed."),
+    ("The honest limit",
+     "This is prototype work in a separate project, shown to make a point about the serving "
+     "layer rather than claimed as a capstone deliverable. Embeddings, vector search and the "
+     "agent are out of scope here, and that boundary is recorded rather than blurred."),
+], caption="Prototype · Vector Search over race reports · weather joined from f1.gold.race_conditions")
+
+# ══════════════════════ 18 · gaps ══════════════════════
+s, top = page("Candour", "What is not done", 18)
 points(s, top, [
     ("Amendment history on the facts  —  and why it is not one property",
      "The architecture document claimed Change Data Feed was live; it never was. The correction is sharper still: CDF is unsupported on materialised views, and every Silver fact is one. Getting it would mean converting them to streaming tables and rebuilding the dedupe. Measured, not assumed."),
@@ -536,7 +567,7 @@ f = tf(s, M, Inches(6.3), BW, Inches(0.6))
 para(f, "An unclaimed gap is worth more than a false claim. Every one of these is in the repository's own documentation.",
      12.5, MUTED, first=True, after=0)
 
-# ══════════════════════ 18 · close ══════════════════════
+# ══════════════════════ 19 · close ══════════════════════
 s = prs.slides.add_slide(BLANK)
 base(s)
 glow = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.14), H)
