@@ -473,3 +473,75 @@ def lap_pace():
         LEFT JOIN {GOLD}.driver_performance dp
           ON dp.season = p.season AND dp.round = p.round AND dp.driver_id = p.driver_id
     """)
+
+
+@dp.materialized_view(
+    name=f"{GOLD}.constructor_standings",
+    comment=(
+        "Constructor championship state after every round: cumulative points, "
+        "position, gap to leader, and round-over-round movement. Grain: "
+        "constructor x round. The team-level mirror of championship_progression."
+    ),
+    table_properties={"quality": "gold"},
+    cluster_by=["season"],
+)
+def constructor_standings():
+    """Read from the standings endpoint, not summed from results.
+
+    Both routes give the same answer — verified, zero mismatches across every
+    team and season — but they are not equally good. Summing driver results
+    reproduces the number; reading the published standings *is* the number, and
+    keeping the independent endpoint in Gold is what lets the two be reconciled
+    against each other at all. Collapse them into one source and the check
+    becomes a tautology.
+
+    That reconciliation is check 14 in sql/validation_checks.sql, and it is the
+    constructor-side equivalent of check 1: two endpoints that were parsed,
+    deduplicated and joined separately agreeing to the point.
+    """
+    return spark.sql(f"""
+        WITH standings AS (
+            SELECT
+                s.season,
+                s.round,
+                r.race_date,
+                r.race_name,
+                r.circuit_country,
+                s.constructor_id,
+                s.constructor_name,
+                s.constructor_nationality,
+                s.championship_position,
+                s.cumulative_points,
+                s.cumulative_wins,
+                MAX(s.cumulative_points) OVER (PARTITION BY s.season, s.round)
+                    AS leader_points,
+                LAG(s.cumulative_points) OVER (
+                    PARTITION BY s.season, s.constructor_id ORDER BY s.round
+                ) AS prev_cumulative_points,
+                LAG(s.championship_position) OVER (
+                    PARTITION BY s.season, s.constructor_id ORDER BY s.round
+                ) AS prev_championship_position
+            FROM {SILVER}.fact_constructor_standing s
+            LEFT JOIN {SILVER}.dim_race r
+                   ON r.season = s.season AND r.round = s.round
+        )
+        SELECT
+            season,
+            round,
+            race_date,
+            race_name,
+            circuit_country,
+            constructor_id,
+            constructor_name,
+            constructor_nationality,
+            championship_position,
+            cumulative_points,
+            cumulative_wins,
+            leader_points - cumulative_points          AS gap_to_leader,
+            cumulative_points - COALESCE(prev_cumulative_points, 0)
+                                                       AS points_gained_in_round,
+            prev_championship_position - championship_position
+                                                       AS position_change_vs_prev_round,
+            championship_position = 1                  AS is_championship_leader
+        FROM standings
+    """)

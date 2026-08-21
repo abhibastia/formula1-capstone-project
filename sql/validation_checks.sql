@@ -302,3 +302,47 @@ WHERE NOT EXISTS (SELECT 1 FROM f1.silver.fact_lap l
    OR NOT EXISTS (SELECT 1 FROM f1.silver.fact_pit_stop p
                    WHERE p.season = r.season AND p.round = r.round)
 ORDER BY r.season, r.round;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 14. Constructor championship reconciliation. MUST return zero rows.
+--
+--     The constructor-side equivalent of check 1, and it works for the same
+--     reason: two independent Jolpica endpoints, parsed and deduplicated
+--     separately, are made to agree. gold.constructor_standings reads the
+--     published constructorStandings endpoint; the comparison sums driver
+--     results by the team the driver actually drove for that weekend.
+--
+--     The as-of-race attribution is what makes this non-trivial. A driver who
+--     changes team mid-season carries their points with them in the standings,
+--     and only an as-of-race join reproduces that — a current-team join would
+--     credit every point they scored all year to whoever they drive for now.
+-- ─────────────────────────────────────────────────────────────────────────
+WITH final_round AS (
+  SELECT season, MAX(round) AS last_round
+  FROM f1.gold.constructor_standings
+  GROUP BY season
+),
+official AS (
+  SELECT c.season, c.constructor_id, c.constructor_name,
+         c.cumulative_points AS points_from_standings
+  FROM f1.gold.constructor_standings c
+  JOIN final_round f ON f.season = c.season AND f.last_round = c.round
+),
+earned AS (
+  SELECT season, constructor_id_as_of_race AS constructor_id,
+         SUM(total_points) AS points_from_results
+  FROM f1.gold.driver_performance
+  WHERE constructor_id_as_of_race IS NOT NULL
+  GROUP BY season, constructor_id_as_of_race
+)
+SELECT
+  o.season,
+  o.constructor_name,
+  e.points_from_results,
+  o.points_from_standings,
+  e.points_from_results - o.points_from_standings AS delta
+FROM official o
+LEFT JOIN earned e ON e.season = o.season AND e.constructor_id = o.constructor_id
+WHERE ABS(COALESCE(e.points_from_results, 0) - o.points_from_standings) > 1e-9
+ORDER BY ABS(delta) DESC;
