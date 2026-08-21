@@ -133,6 +133,31 @@ declared `version: 3` when the only supported version is 2; a filter querying
 `Object.prototype.constructor` and the tile silently draws nothing. `pytest`
 now fails on all three.
 
+### Push the Genie agent
+
+Editing `genie/f1_gold_space.json` only changes the file. Nothing deploys it —
+there is no bundle resource or script for this, unlike the pipeline and the
+dashboard — so push it by hand:
+
+```bash
+databricks genie update-space 01f198328efd1d7bb0a3d43205fda74b --profile <profile> \
+  --json "{\"serialized_space\": $(cat genie/f1_gold_space.json | jq -c '.' | jq -Rs '.')}"
+```
+
+**The space's `title` and `description` are not in this file.** They are
+metadata set at creation time (`databricks genie create-space --description
+...`), live only in the workspace, and nothing catches them drifting from the
+data the space actually reads — that is how the description came to say
+"five Gold marts" after a sixth mart and the `driver_metrics` metric view were
+added. Check and update them directly when the mart set changes:
+
+```bash
+databricks genie get-space 01f198328efd1d7bb0a3d43205fda74b --profile <profile> -o json \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['description'])"
+databricks genie update-space 01f198328efd1d7bb0a3d43205fda74b --profile <profile> \
+  --json '{"description": "..."}'
+```
+
 ---
 
 ## 3. Health checks
@@ -298,6 +323,7 @@ databricks fs rm -r dbfs:/Volumes/f1/raw/landing/<endpoint>/season=<s>/round=<r>
 | Gold | `f1.gold.driver_performance`, `championship_progression`, `race_conditions`, `race_strategy`, `lap_pace`, `constructor_standings`, plus the `driver_metrics` metric view |
 | Not ours | `f1.gold.agent_activity_analytics`, `agent_tool_calls` — a separate project's, kept for later |
 | Pipeline event log | `f1.gold.pipeline_event_log` |
+| Genie agent | `genie/f1_gold_space.json` — space `01f198328efd1d7bb0a3d43205fda74b`; `title`/`description` are workspace-only, see §2 |
 | Ingestion code | `src/ingestion/` — plain modules, unit tested |
 | Pipeline code | `src/pipeline/` — Lakeflow declarative definitions |
 | Tests | `tests/` — 224 local, no cluster or network; `tests/spark/` runs on Databricks |
