@@ -48,6 +48,36 @@ CHECKS = [
         """,
     ),
     (
+        "constructor championship reconciliation",
+        "zero",
+        """
+        WITH final_round AS (
+          SELECT season, MAX(round) AS last_round
+          FROM {c}.gold.constructor_standings GROUP BY season
+        ),
+        official AS (
+          SELECT s.season, s.constructor_id, s.cumulative_points AS p
+          FROM {c}.gold.constructor_standings s
+          JOIN final_round f ON f.season = s.season AND f.last_round = s.round
+        ),
+        earned AS (
+          SELECT season, constructor_id_as_of_race AS constructor_id,
+                 SUM(total_points) AS p
+          FROM {c}.gold.driver_performance
+          WHERE constructor_id_as_of_race IS NOT NULL
+          GROUP BY season, constructor_id_as_of_race
+        )
+        -- Two independent endpoints, parsed separately, made to agree. The
+        -- as-of-race attribution is what makes it non-trivial: a driver who
+        -- changes team mid-season carries their points with them.
+        SELECT o.season, o.constructor_id, e.p, o.p
+        FROM official o
+        LEFT JOIN earned e
+          ON e.season = o.season AND e.constructor_id = o.constructor_id
+        WHERE ABS(COALESCE(e.p, 0) - o.p) > 1e-9
+        """,
+    ),
+    (
         "SCD-2 history exists",
         "nonzero",
         "SELECT driver_id FROM {c}.silver.dim_driver WHERE __END_AT IS NOT NULL",

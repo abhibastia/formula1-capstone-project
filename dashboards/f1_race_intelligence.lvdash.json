@@ -198,40 +198,47 @@
       "name": "ds_constructor_standings",
       "displayName": "Constructors' championship",
       "queryLines": [
-        "WITH totals AS (\n",
-        "  SELECT season,\n",
-        "         constructor_name_as_of_race                     AS team,\n",
-        "         SUM(total_points)                               AS points,\n",
-        "         SUM(CASE WHEN is_win THEN 1 ELSE 0 END)         AS wins,\n",
-        "         SUM(CASE WHEN is_podium THEN 1 ELSE 0 END)      AS podiums,\n",
-        "         SUM(CASE WHEN dnf_flag THEN 1 ELSE 0 END)       AS dnfs,\n",
-        "         COUNT(DISTINCT driver_name)                     AS drivers\n",
+        "WITH final_round AS (\n",
+        "  SELECT season, MAX(round) AS last_round FROM constructor_standings GROUP BY season\n",
+        "),\n",
+        "official AS (\n",
+        "  SELECT s.season,\n",
+        "         s.championship_position AS position,\n",
+        "         s.constructor_name      AS team,\n",
+        "         s.cumulative_points     AS points,\n",
+        "         s.cumulative_wins       AS wins,\n",
+        "         s.gap_to_leader\n",
+        "  FROM constructor_standings s\n",
+        "  JOIN final_round f ON f.season = s.season AND f.last_round = s.round\n",
+        "),\n",
+        "extras AS (\n",
+        "  SELECT season, constructor_name_as_of_race AS team,\n",
+        "         SUM(CASE WHEN is_podium THEN 1 ELSE 0 END) AS podiums,\n",
+        "         SUM(CASE WHEN dnf_flag  THEN 1 ELSE 0 END) AS dnfs,\n",
+        "         COUNT(DISTINCT driver_name)                AS drivers\n",
         "  FROM driver_performance\n",
         "  WHERE constructor_name_as_of_race IS NOT NULL\n",
         "  GROUP BY season, constructor_name_as_of_race\n",
         ")\n",
-        "SELECT season,\n",
-        "       RANK() OVER (PARTITION BY season ORDER BY points DESC)      AS position,\n",
-        "       team, points, wins, podiums, dnfs, drivers,\n",
-        "       MAX(points) OVER (PARTITION BY season) - points             AS gap_to_leader,\n",
-        "       MAX(points) OVER (PARTITION BY season)                      AS winning_team_points\n",
-        "FROM totals\n"
+        "SELECT o.season, o.position, o.team, o.points, o.wins, o.gap_to_leader,\n",
+        "       e.podiums, e.dnfs, e.drivers,\n",
+        "       MAX(o.points) OVER (PARTITION BY o.season) AS winning_team_points\n",
+        "FROM official o\n",
+        "LEFT JOIN extras e ON e.season = o.season AND e.team = o.team\n"
       ]
     },
     {
       "name": "ds_constructor_progression",
       "displayName": "Constructors' title race",
       "queryLines": [
-        "WITH per_round AS (\n",
-        "  SELECT season, round, constructor_name_as_of_race AS team, SUM(total_points) AS pts\n",
-        "  FROM driver_performance\n",
-        "  WHERE constructor_name_as_of_race IS NOT NULL\n",
-        "  GROUP BY season, round, constructor_name_as_of_race\n",
-        ")\n",
-        "SELECT season, round, team,\n",
-        "       SUM(pts) OVER (PARTITION BY season, team ORDER BY round\n",
-        "                      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_points\n",
-        "FROM per_round\n"
+        "SELECT season, round, race_name,\n",
+        "       constructor_name AS team,\n",
+        "       championship_position,\n",
+        "       cumulative_points,\n",
+        "       gap_to_leader,\n",
+        "       points_gained_in_round,\n",
+        "       position_change_vs_prev_round\n",
+        "FROM constructor_standings\n"
       ]
     }
   ],
@@ -641,7 +648,7 @@
                 "showTitle": true,
                 "title": "Constructors' Championship",
                 "showDescription": true,
-                "description": "Summed from driver results by as-of-race team. Verified against the published constructor standings: zero mismatches across every team and season."
+                "description": "Straight from the published constructor standings. Reconciles with the sum of driver results by as-of-race team: zero mismatches, every team, every season."
               }
             }
           },
@@ -724,7 +731,7 @@
                 "showTitle": true,
                 "title": "Where the constructors' championship turned",
                 "showDescription": true,
-                "description": "2024: Red Bull led on 373 at round 12 and finished third. McLaren won it from 295."
+                "description": "From the standings endpoint itself, not summed. 2024: Red Bull led on 373 at round 12 and finished third; McLaren won it from 295."
               }
             }
           },

@@ -208,7 +208,7 @@ s, top = page("Scope", "What is built", 3)
 statgrid(s, top, [
     ("11", "Bronze streaming tables\none per endpoint", TEXT),
     ("8 + 3", "Silver facts + dimensions\ntwo dimensions SCD Type 2", TEXT),
-    ("5", "Gold marts\nclustered by season, round", TEXT),
+    ("6", "Gold marts\nclustered by season, round", TEXT),
     ("5 + 1", "dashboard pages, one per decision\nplus a Genie agent over Gold", TEXT),
     ("65,862", "lap timings — the finest grain", BLUE),
     ("9", "quarantine views, one per fact", AMBER),
@@ -503,7 +503,7 @@ para(f, "Ingestion is idempotent, Silver deduplicates on natural keys, dimension
      14, MUTED, after=0, space=1.3)
 statgrid(s, Inches(5.6), [
     ("3", "seasons · 59 rounds", MUTED),
-    ("5", "Gold marts · 5 decision pages", MUTED),
+    ("6", "Gold marts · 6 decision pages", MUTED),
     ("129", "automated tests", MUTED),
     ("0", "reconciliation mismatches", TEAL),
 ], h=Inches(1.15))
