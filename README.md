@@ -4,8 +4,10 @@ A governed, end-to-end data pipeline on Databricks Free Edition: public F1 APIs 
 Unity Catalog Volume → Lakeflow Declarative Pipeline (Bronze → Silver → Gold) →
 AI/BI dashboards. Built as a data-engineering capstone.
 
-`docs/architecture.md` is the design and decision record — why each dataset type
-was chosen, what was considered and rejected, and where the gaps still are.
+`docs/architecture.md` is the design record — how the platform works, plus a data
+dictionary in §7. `docs/adr/` holds ten Architecture Decision Records covering
+why it is built this way and what was rejected, including the decisions that
+turned out to be wrong.
 **§7 is the data dictionary**: the grain of every stored dataset, and the
 definition of every metric the project measures.
 
@@ -69,7 +71,8 @@ AI/BI Dashboard                  one page per analyst decision:
 | `genie/` | Genie agent definition — natural-language access, scoped to Gold |
 | `docs/deck/build_deck.py` | The capstone presentation, generated — `python3 docs/deck/build_deck.py` |
 | `setup_secrets.py` | Secret scope provisioning — not needed today, see above |
-| `docs/architecture.md` | Design, decision record, and criteria coverage |
+| `docs/architecture.md` | Design, data dictionary (§7), and criteria coverage |
+| `docs/adr/` | Architecture Decision Records — why, and what else was on the table |
 | `CLAUDE.md` | Standing constraints — read before changing anything |
 
 ## Quickstart
@@ -297,9 +300,12 @@ double-counts.
   stint analysis is possible from Jolpica; tyre strategy is not.
 - Jolpica is community-maintained. Raw JSON is cached in the Volume so the
   pipeline never depends on the API being up.
-- **Change Data Feed is not enabled**, so `table_changes()` answers nothing.
-  Enabling it is one table property and is the largest remaining gap — see
-  §5.4 of `docs/architecture.md`.
+- **No amendment history on the facts.** Change Data Feed is *unsupported* on
+  materialised views, and the Silver facts are materialised views for a reason
+  (deduplication is a full-partition window function). So "what did the stewards
+  change after publication" cannot be answered without converting them to
+  streaming tables. CDF is already enabled on the streaming tables — Bronze and
+  both SCD-2 dimensions — where Lakeflow sets it by default. See §5.4.
 - **The access model cannot be demonstrated on this workspace.** Grants are
   applied and correct, but the owner's ownership outranks every one of them, so
   proving the layering needs a second identity that owns nothing.
