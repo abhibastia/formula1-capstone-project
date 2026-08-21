@@ -195,7 +195,7 @@
       {
         "id": "30000000000000000000000000000001",
         "content": [
-          "This agent answers Formula 1 questions for reporters and fans over five Gold marts. Never query bronze, silver or raw — the marts already resolve the joins.\n",
+          "This agent answers Formula 1 questions for reporters and fans over six Gold marts and the metric view above them. Never query bronze, silver or raw — the marts already resolve the joins.\n",
           "\n",
           "WHICH TABLE ANSWERS WHAT\n",
           "driver_metrics — a Unity Catalog metric view over driver_performance, and the preferred source for any points, wins, reliability or qualifying aggregate. Measures must be wrapped in MEASURE(): MEASURE(`Total Points`), MEASURE(`DNF Rate`), MEASURE(`Points Per Start`). SELECT * is not supported. Use it rather than re-deriving those aggregates from driver_performance, so the answer matches the dashboard by construction. Dimensions are Season, Round, Race, Circuit, Country, Driver, Team, Qualifying Stage and Result.\n",
