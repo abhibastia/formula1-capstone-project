@@ -316,7 +316,9 @@ databricks fs rm -r dbfs:/Volumes/f1/raw/landing/<endpoint>/season=<s>/round=<r>
   dedupes on `(season, round, lap, driver_id)`.
 - **`race_strategy` shows a driver with more stops than the field and worse
   results.** That is the finding, not an error — going off-strategy loses about
-  1.2 positions on average.
+  1.09 positions on average — staying with the field gains 0.69 places, deviating
+  in either direction loses 0.40. The dashboard's Constructor Benchmarking page
+  shows the split.
 - **The wettest race has the lowest retirement rate.** Also the finding. Monza
   2024 measured 19.1 mm and ran dry, because a daily total cannot tell rain that
   fell overnight from rain that fell during the race.

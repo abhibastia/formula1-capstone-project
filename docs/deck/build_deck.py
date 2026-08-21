@@ -537,8 +537,8 @@ points(s, top, [
      "Ranking each driver's median clean lap within a race against where they finished: 150 driver-races ended at least three places behind their own pace, 232 ahead of it. No points table shows that."),
     ("Rain does not cause chaos — and the dashboard argues the point",
      "Monza 2024 measured 19.1 mm and ran dry. A daily total cannot tell rain that fell overnight from rain that fell during the race, so the mart names the source of the flag rather than asserting it rained. The wet-versus-dry bars on Circuit Priors would separate if rain changed the racing. They barely do."),
-    ("Going off-strategy costs about 1.2 positions on average",
-     "Stints are derived from stops, because nothing publishes them: two stops means three stints. 'Two stops' alone means nothing; 'two stops when the field made three' is the story."),
+    ("Running the field's strategy is worth about 1.1 positions",
+     "Stay with the field and you gain 0.69 places on average; deviate in either direction and you lose 0.40. Stints are derived from stops, because nothing publishes them — and 'two stops' means nothing until you know the field made three."),
 ], size=15, gap=10)
 
 # ══════════════════════ 16 · future scope ══════════════════════
