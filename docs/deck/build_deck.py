@@ -39,21 +39,31 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Emu, Inches, Pt
 
-BG     = RGBColor(0x0B, 0x10, 0x16)
-CARD   = RGBColor(0x15, 0x1D, 0x26)
-CARD2  = RGBColor(0x1B, 0x25, 0x30)
-LINE   = RGBColor(0x27, 0x34, 0x42)
-TEXT   = RGBColor(0xEC, 0xF1, 0xF6)
-MUTED  = RGBColor(0x8B, 0x9A, 0xAA)
-RED    = RGBColor(0xFF, 0x28, 0x00)
-TEAL   = RGBColor(0x00, 0xD9, 0xA3)
-AMBER  = RGBColor(0xFF, 0xB0, 0x20)
-BLUE   = RGBColor(0x5A, 0xA9, 0xFF)
+# Formula 1's own palette: the near-black #15151E its broadcast graphics sit on,
+# and #E10600, the red used on the logo and every trackside board. The accent
+# colours are team liveries rather than arbitrary picks — Mercedes petronas for
+# a verified number, McLaren papaya for a gap, a racing blue for context — so a
+# colour on a slide means something to anyone who watches the sport.
+BG     = RGBColor(0x15, 0x15, 0x1E)   # F1 dark
+CARD   = RGBColor(0x1F, 0x1F, 0x2B)
+CARD2  = RGBColor(0x27, 0x27, 0x3A)
+LINE   = RGBColor(0x3A, 0x3A, 0x50)
+TEXT   = RGBColor(0xFF, 0xFF, 0xFF)
+MUTED  = RGBColor(0x9A, 0x9A, 0xB0)
+RED    = RGBColor(0xE1, 0x06, 0x00)   # official F1 red
+TEAL   = RGBColor(0x00, 0xD2, 0xBE)   # Mercedes petronas
+AMBER  = RGBColor(0xFF, 0x87, 0x00)   # McLaren papaya
+BLUE   = RGBColor(0x00, 0x90, 0xFF)   # racing blue
 
 W, H = Inches(13.333), Inches(7.5)
 M = Inches(0.85)
 BW = W - 2 * M
-FONT = "Arial"
+
+# Titillium Web is Formula 1's own typeface and is available in Google Slides,
+# where this deck is presented from. Anywhere it is missing the fallback is a
+# plain sans — a different look, never a broken one.
+FONT = "Titillium Web"
+FONT_FALLBACK = "Arial"
 
 prs = Presentation()
 prs.slide_width, prs.slide_height = W, H
@@ -69,7 +79,7 @@ def tf(slide, l, t, w, h):
 
 
 def para(f, text, size, color=TEXT, bold=False, after=8, before=0,
-         first=False, align=PP_ALIGN.LEFT, space=None):
+         first=False, align=PP_ALIGN.LEFT, space=None, face=None):
     p = f.paragraphs[0] if first else f.add_paragraph()
     p.text = text
     p.alignment = align
@@ -81,7 +91,9 @@ def para(f, text, size, color=TEXT, bold=False, after=8, before=0,
         r.font.size = Pt(size)
         r.font.color.rgb = color
         r.font.bold = bold
-        r.font.name = FONT
+        # Display sizes carry the F1 face; body copy stays on the universally
+        # available fallback, so a missing font can never cost legibility.
+        r.font.name = face or (FONT if size >= 18 else FONT_FALLBACK)
     return p
 
 
@@ -111,6 +123,34 @@ def dot(slide, l, t, color, size=Inches(0.12)):
     return d
 
 
+def chequer(slide, left, top, cols=6, rows=2, size=Inches(0.17), color=None):
+    """A chequered-flag block. Two rows is enough to read as one; more is noise."""
+    color = color or TEXT
+    for r in range(rows):
+        for c in range(cols):
+            if (r + c) % 2:
+                continue
+            sq = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+                                        left + c * size, top + r * size, size, size)
+            sq.fill.solid()
+            sq.fill.fore_color.rgb = color
+            sq.line.fill.background()
+            sq.shadow.inherit = False
+
+
+def speed_lines(slide, right, top, color=None):
+    """Three tapering bars — the motion mark F1 uses on everything."""
+    color = color or RED
+    for i, (w, h, gap) in enumerate([(Inches(1.5), Inches(0.09), 0),
+                                     (Inches(1.1), Inches(0.09), Inches(0.18)),
+                                     (Inches(0.7), Inches(0.09), Inches(0.36))]):
+        bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, right - w, top + gap, w, h)
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = color
+        bar.line.fill.background()
+        bar.shadow.inherit = False
+
+
 def base(slide):
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = BG
@@ -123,9 +163,14 @@ def page(kicker, title, n=None):
     para(k, kicker.upper(), 11, RED, bold=True, first=True, after=0)
     t = tf(s, M, Inches(0.86), BW, Inches(0.72))
     para(t, title, 31, TEXT, bold=True, first=True, after=0)
+    # A hairline across the page, with a short red lead-in — the start-line feel
+    # without a graphic that competes with the content.
     rule = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, M, Inches(1.62), BW, Emu(9525))
     rule.fill.solid(); rule.fill.fore_color.rgb = LINE
     rule.line.fill.background(); rule.shadow.inherit = False
+    lead_in = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, M, Inches(1.605), Inches(1.1), Inches(0.035))
+    lead_in.fill.solid(); lead_in.fill.fore_color.rgb = RED
+    lead_in.line.fill.background(); lead_in.shadow.inherit = False
     if n:
         f = tf(s, W - M - Inches(0.8), H - Inches(0.6), Inches(0.8), Inches(0.3))
         para(f, f"{n:02d}", 11, MUTED, first=True, align=PP_ALIGN.RIGHT, after=0)
@@ -152,32 +197,6 @@ def points(s, top, items, size=15, gap=15, width=None, head_color=TEXT):
     return f
 
 
-ASSETS = Path(__file__).resolve().parent / "assets"
-
-
-def screenshot(s, name, aspect, notes, top=Inches(2.0), caption=None):
-    """A UI screenshot on the right, what to look at on the left.
-
-    Full-bleed screenshots read as decoration. Pairing one with the two or
-    three things worth noticing turns it into evidence.
-    """
-    path = ASSETS / name
-    assert path.exists(), f"missing deck asset: {path}"
-    text_w = Inches(3.5)
-    img_w = BW - text_w - Inches(0.4)
-    img_h = img_w / aspect
-    s.shapes.add_picture(str(path), M + text_w + Inches(0.4), top,
-                         width=int(img_w), height=int(img_h))
-    f = tf(s, M, top + Inches(0.05), text_w, H - top - Inches(1.0))
-    for i, (head, body) in enumerate(notes):
-        para(f, head, 13.5, TEAL, bold=True, first=(i == 0), after=3,
-             before=0 if i == 0 else 12)
-        para(f, body, 11.5, MUTED, after=0, space=1.2)
-    if caption:
-        cf = tf(s, M + text_w + Inches(0.4), top + img_h + Inches(0.12), img_w, Inches(0.4))
-        para(cf, caption, 10.5, MUTED, first=True, after=0)
-
-
 def statgrid(s, top, rows, cols=4, h=Inches(1.35)):
     gap = Inches(0.24)
     w = (BW - gap * (cols - 1)) / cols
@@ -194,9 +213,11 @@ def statgrid(s, top, rows, cols=4, h=Inches(1.35)):
 # ══════════════════════ 1 · title ══════════════════════
 s = prs.slides.add_slide(BLANK)
 base(s)
-glow = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.14), H)
+glow = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.22), H)
 glow.fill.solid(); glow.fill.fore_color.rgb = RED
 glow.line.fill.background(); glow.shadow.inherit = False
+chequer(s, Inches(11.0), Inches(0.75), cols=8, rows=2, size=Inches(0.2))
+speed_lines(s, W - Inches(0.9), Inches(6.35))
 f = tf(s, Inches(1.15), Inches(2.15), Inches(10.8), Inches(2.8))
 para(f, "DATA ENGINEERING CAPSTONE", 12, RED, bold=True, first=True, after=14)
 para(f, "Formula 1", 44, TEXT, bold=True, after=2)
@@ -520,59 +541,39 @@ points(s, top, [
      "Stints are derived from stops, because nothing publishes them: two stops means three stints. 'Two stops' alone means nothing; 'two stops when the field made three' is the story."),
 ], size=15, gap=10)
 
-# ══════════════════════ 16 · downstream: the copilot ══════════════════════
-s, top = page("Downstream", "The Gold layer already feeds more than a dashboard", 16)
-screenshot(s, "copilot-overview.png", 1.837, [
-    ("A working prototype, not a finished product",
-     "F1 Strategy Copilot is a separate project and an early one — a Databricks App with "
-     "embeddings and vector search. Parts work end to end; parts do not. It is out of scope "
-     "for this capstone by decision (ADR 0009), and it reads these Gold marts."),
-    ("The numbers are this pipeline's",
-     "1,200 race results, 59 weather observations, 22 wet races, 3 seasons. Every figure on "
-     "that page traces back through Silver to a raw API payload."),
-    ("Which is the point of a serving layer",
-     "A dashboard was never meant to be the only consumer. The marts resolve the as-of-race "
-     "joins once, so anything downstream — a tile, a Genie answer, a prototype app — starts "
-     "from the same numbers rather than re-deriving them."),
-], caption="F1 Strategy Copilot — separate project, prototype · Databricks Apps · reads f1.gold")
+# ══════════════════════ 16 · future scope ══════════════════════
+s, top = page("Next", "From dashboards to a copilot", 16)
+lead(s, top, "The marts are the product. The next step is who else can reach them.",
+     "Everything below reads the same Gold layer — no second copy of the data, no new pipeline.")
+cards = [
+    ("Fan & reporter app", "Databricks Apps front end over the Genie agent: ask in plain English, get the number and the query behind it.", BLUE),
+    ("Semantic search", "Vector Search over race reports and regulations, so 'why was he penalised' returns the text, not a row.", BLUE),
+    ("Standings & weather explorer", "Every season's championship progression and measured race-day conditions, on demand.", BLUE),
+    ("Amendment history", "Answering what the stewards changed needs the Silver facts as streaming tables — a real trade, not a checkbox.", AMBER),
+]
+gap = Inches(0.24)
+cw = (BW - gap * 3) / 4
+for i, (title, sub, col) in enumerate(cards):
+    l = M + i * (cw + gap)
+    card(s, l, Inches(3.7), cw, Inches(1.85))
+    strip = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, l, Inches(3.7), cw, Inches(0.05))
+    strip.fill.solid(); strip.fill.fore_color.rgb = col
+    strip.line.fill.background(); strip.shadow.inherit = False
+    f = tf(s, l + Inches(0.22), Inches(3.95), cw - Inches(0.44), Inches(1.5))
+    para(f, title, 13.5, TEXT, bold=True, first=True, after=5)
+    para(f, sub, 11, MUTED, after=0, space=1.18)
+f = tf(s, M, Inches(5.85), BW, Inches(0.8))
+para(f, "The Genie agent already answers questions over Gold today, governed by the same grants. The app is the front "
+        "door for people who will never open a Databricks workspace. SCD-2 already gives version history on the "
+        "dimensions — 42 driver versions, queryable now.", 13, TEAL, first=True, after=0, space=1.2)
 
-# ══════════════════════ 17 · downstream: semantic search ══════════════════════
-s, top = page("Downstream", "Ask it in words the schema never anticipated", 17)
-screenshot(s, "semantic-search.png", 1.937, [
-    ("\"chaotic wet race decided by a safety car\"",
-     "No column holds that. Vector search over 58 race reports returns São Paulo 2024 at "
-     "17.9 mm and Belgium 2025 at 10.3 mm — found by meaning, not keywords."),
-    ("Each hit carries the measured weather",
-     "The rainfall badge on every result comes from race_conditions in this pipeline, so the "
-     "story and the observation can be compared rather than assumed."),
-    ("The honest limit",
-     "This is prototype work in a separate project, shown to make a point about the serving "
-     "layer rather than claimed as a capstone deliverable. Embeddings, vector search and the "
-     "agent are out of scope here, and that boundary is recorded rather than blurred."),
-], caption="Prototype · Vector Search over race reports · weather joined from f1.gold.race_conditions")
-
-# ══════════════════════ 18 · gaps ══════════════════════
-s, top = page("Candour", "What is not done", 18)
-points(s, top, [
-    ("Amendment history on the facts  —  and why it is not one property",
-     "The architecture document claimed Change Data Feed was live; it never was. The correction is sharper still: CDF is unsupported on materialised views, and every Silver fact is one. Getting it would mean converting them to streaming tables and rebuilding the dedupe. Measured, not assumed."),
-    ("The access model cannot be demonstrated on this workspace",
-     "Ownership outranks every grant for a single user. Proving the layering needs a second identity that owns nothing."),
-    ("Eight quarantined standings rows are unexplained",
-     "Rejected on position_present, predating the current work. The census reports them rather than claiming zero."),
-    ("No tyre compounds, and prod is unprovisioned",
-     "Compounds need FastF1. The prod target is wired but its catalog does not exist — Free Edition cannot create catalogs over the API."),
-], size=14, gap=6)
-f = tf(s, M, Inches(6.3), BW, Inches(0.6))
-para(f, "An unclaimed gap is worth more than a false claim. Every one of these is in the repository's own documentation.",
-     12.5, MUTED, first=True, after=0)
-
-# ══════════════════════ 19 · close ══════════════════════
+# ══════════════════════ 17 · close ══════════════════════
 s = prs.slides.add_slide(BLANK)
 base(s)
-glow = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.14), H)
+glow = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.22), H)
 glow.fill.solid(); glow.fill.fore_color.rgb = RED
 glow.line.fill.background(); glow.shadow.inherit = False
+chequer(s, Inches(11.0), Inches(0.75), cols=8, rows=2, size=Inches(0.2))
 f = tf(s, Inches(1.15), Inches(2.3), Inches(10.8), Inches(2.4))
 para(f, "IN ONE LINE", 12, RED, bold=True, first=True, after=16)
 para(f, "A pipeline whose numbers", 34, TEXT, bold=True, after=2)
