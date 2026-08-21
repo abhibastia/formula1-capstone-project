@@ -454,7 +454,7 @@ cards = [
     ("Fan & reporter app", "Databricks Apps front end over the Genie agent: ask in plain English, get the number and the query behind it.", BLUE),
     ("Semantic search", "Vector Search over race reports and regulations, so 'why was he penalised' returns the text, not a row.", BLUE),
     ("Standings & weather explorer", "Every season's championship progression and measured race-day conditions, on demand.", BLUE),
-    ("Change Data Feed", "One table property, and the app can answer what the stewards changed after publication.", AMBER),
+    ("Amendment history", "Answering what the stewards changed needs the Silver facts as streaming tables — a real trade, not a checkbox.", AMBER),
 ]
 gap = Inches(0.24)
 cw = (BW - gap * 3) / 4
@@ -469,13 +469,14 @@ for i, (title, sub, col) in enumerate(cards):
     para(f, sub, 11, MUTED, after=0, space=1.18)
 f = tf(s, M, Inches(5.85), BW, Inches(0.8))
 para(f, "The Genie agent already answers questions over Gold today, governed by the same grants. The app is the front "
-        "door for people who will never open a Databricks workspace.", 13, TEAL, first=True, after=0, space=1.2)
+        "door for people who will never open a Databricks workspace. SCD-2 already gives version history on the "
+        "dimensions — 42 driver versions, queryable now.", 13, TEAL, first=True, after=0, space=1.2)
 
 # ══════════════════════ 15 · gaps ══════════════════════
 s, top = page("Candour", "What is not done", 15)
 points(s, top, [
-    ("Change Data Feed is not enabled  —  the one hard miss",
-     "An earlier draft of the architecture document described it as live and scored the criterion as met. It never was: the property appears nowhere in the source, so table_changes() returns nothing today."),
+    ("Amendment history on the facts  —  and why it is not one property",
+     "The architecture document claimed Change Data Feed was live; it never was. The correction is sharper still: CDF is unsupported on materialised views, and every Silver fact is one. Getting it would mean converting them to streaming tables and rebuilding the dedupe. Measured, not assumed."),
     ("The access model cannot be demonstrated on this workspace",
      "Ownership outranks every grant for a single user. Proving the layering needs a second identity that owns nothing."),
     ("Eight quarantined standings rows are unexplained",

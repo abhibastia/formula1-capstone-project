@@ -304,5 +304,9 @@ databricks fs rm -r dbfs:/Volumes/f1/raw/landing/<endpoint>/season=<s>/round=<r>
   evaluated.
 - **`f1.gold` holds eight objects where the docs describe six.** Two belong to a
   separate agent project. Nothing here writes or reads them.
-- **`table_changes()` returns nothing.** Change Data Feed was designed but never
-  enabled; `docs/architecture.md` §5.4 has the detail.
+- **`table_changes()` fails on a fact or a mart.** Not a misconfiguration: CDF is
+  unsupported on materialised views, and every Silver fact and Gold mart is one.
+  It works on the streaming tables — Bronze and the SCD-2 dimensions — where
+  Lakeflow enables it by default. Reading from version 0 there fails on
+  `deletedFileRetentionDuration` (168 hours), which is retention, not CDF.
+  `docs/architecture.md` §5.4 has the measurements.

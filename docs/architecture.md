@@ -1,5 +1,9 @@
 # Architecture
 
+> **Decisions live in [`docs/adr/`](adr/README.md)** — ten records covering why
+> the platform is built this way, what was rejected, and what each choice cost.
+> This document explains **how it works**; the ADRs explain **why**.
+
 F1 Race Intelligence — a batch lakehouse that turns three public APIs into a
 dashboard an F1 reporter or fan can answer questions from.
 
@@ -289,34 +293,62 @@ standings rows arrive with no championship position, and 2 pit stops are
 published with an empty duration. Zero everywhere would mean the expectations
 had stopped being evaluated.
 
-### 5.4 Change Data Feed — considered, not enabled
+### 5.4 Change Data Feed — unsupported where it would matter
 
-**An earlier draft of this document described CDF as enabled on `fact_result`
-and the Gold marts. It never was** — `delta.enableChangeDataFeed` appears
-nowhere in `src/`. The section is kept, corrected, because the reasoning is
-still the right reasoning and the gap is worth stating rather than quietly
-deleting.
+This section has been wrong twice, in opposite directions, so it states what was
+measured rather than what was assumed.
 
-CDF is not needed to make this pipeline incremental. LDP already does that:
-streaming tables process only new data, and materialised views on serverless
-refresh incrementally. Enabling CDF for internal plumbing would be cargo cult.
+**First draft:** described CDF as enabled on `fact_result` and the Gold marts. It
+never was — `delta.enableChangeDataFeed` appears nowhere in `src/`.
 
-The case for it is different — **auditing amendments**. Because results are
-provisional, the interesting question is not only "what is the classification"
-but "*did it change, and when*". The Silver dedupe keeps the newest row and, by
-design, discards the one it replaced; CDF is what would preserve the fact that a
-change happened, and let `table_changes()` answer:
+**Second draft:** said turning it on was "one table property on the Silver facts
+and the Gold marts". That is not possible. Those datasets are materialised views,
+and Databricks answers a `table_changes()` call on one with:
 
-- Which classifications were revised after publication, and by how many places?
-- Which championship positions changed by a stewards' decision rather than a race?
+```
+[MATERIALIZED_VIEW_UNSUPPORTED_OPERATION]
+Operation CHANGE DATA FEED is currently not supported on Materialized Views.
+```
 
-Turning it on is one table property on the Silver facts and the Gold marts. It
-is not done, so **`table_changes()` returns nothing today** and any claim that
-this platform tracks amendments for consumers is unsupported.
+Not disabled — unsupported. No property changes it.
 
-The boundary is still worth stating: the dedupe is how rows get *into* the
-tables correctly; CDF is how consumers would see what *changed*. Different
-mechanisms, different jobs.
+**What is actually true in this workspace**, measured on each dataset type:
+
+| Dataset type | Ours | `table_changes()` |
+|---|---|---|
+| Materialised view | 8 Silver facts, 6 Gold marts | Unsupported. Cannot be enabled. |
+| Streaming table | 11 Bronze tables, `dim_driver`, `dim_constructor` | **Already enabled** — `delta.enableChangeDataFeed = true`, set by Lakeflow, not by us |
+
+`table_changes('f1.silver.dim_driver', 2)` returns 42 insert rows today. Reading
+from version 0 fails on `deletedFileRetentionDuration` (168 hours), which is a
+retention limit rather than a CDF one.
+
+**Why CDF is not needed for the pipeline.** LDP is already incremental: streaming
+tables process only new data, and materialised views on serverless refresh
+incrementally. Enabling CDF for internal plumbing would be cargo cult, and that
+was true in every draft of this document.
+
+**Why it was wanted anyway.** Because results are provisional, the interesting
+question is not only "what is the classification" but "*did it change, and
+when*". The Silver dedupe keeps the newest row and discards the one it replaced,
+so the fact that an amendment happened is lost.
+
+**Why that question stays unanswered.** It lives in `fact_result`, which is a
+materialised view because deduplication there is a full-partition window function
+that streaming append mode cannot express (§5.1, §5.3). Getting CDF onto it would
+mean converting the Silver facts to streaming tables and rebuilding the
+deduplication as an Auto CDC flow — a real architectural change with a real
+trade-off, not a checkbox. It is not worth making to satisfy a criterion.
+
+**What change tracking does exist.** SCD Type 2 on the dimensions, which is not a
+consolation prize: `dim_driver` holds 42 versions across 28 drivers with
+`__START_AT` / `__END_AT`, queryable today, and it is what lets Gold attribute a
+result to the team a driver actually drove for that weekend. Amendment history
+for *facts* is the gap; version history for *dimensions* is built and used.
+
+The boundary is still worth stating: the dedupe is how rows get *into* the tables
+correctly; CDF is how consumers would see what *changed*. Different mechanisms,
+different jobs — and on materialised views, only the first one is available.
 
 ### 5.5 Gold — serve
 
@@ -742,7 +774,7 @@ Assessed against the technical-execution minimum criteria.
 | Pipeline architecture pattern | **Met** | Batch, single path — §3 |
 | Incremental processing | **Met** | Streaming tables + Auto Loader; incremental MV refresh — §5.1 |
 | Change data capture | **Met** | Auto CDC SCD Type 2 on both dimensions; natural-key dedupe on facts — §5.3 |
-| Change tracking for consumers | **NOT MET** | Change Data Feed is not enabled; `table_changes()` returns nothing — §5.4 |
+| Change tracking for consumers | **Partial** | CDF is unsupported on materialised views, which is where the facts live. SCD-2 gives version history on dimensions — §5.4 |
 | Serving model paradigm | **Met** | Silver star schema, Gold OBT marts |
 | Semantic model consistency | **Partial** | Metrics defined once in Gold columns; no separate metric-view layer |
 | Access-pattern-aware design | **Met** | Clustering, materialisation, denormalisation — §6 |
@@ -766,10 +798,12 @@ Assessed against the technical-execution minimum criteria.
 
 ### Gaps to close
 
-1. **Change Data Feed.** The one hard miss, and the one an earlier draft of this
-   document wrongly claimed as done. One table property on the Silver facts and
-   the Gold marts would make `table_changes()` answer what the stewards changed
-   after publication — the question this dataset can answer and most cannot.
+1. **Amendment history on the facts.** Not a missing property: CDF is
+   unsupported on materialised views, and the Silver facts are materialised
+   views for a reason (§5.1). Answering "what did the stewards change after
+   publication" would mean converting them to streaming tables and rebuilding
+   the deduplication as an Auto CDC flow. Worth doing only if the question
+   becomes a requirement rather than an ambition.
 2. **Metric views.** A semantic layer over Gold if the mart set grows. Today the
    mart columns are that layer.
 3. **A second identity.** The access model cannot be demonstrated on a
