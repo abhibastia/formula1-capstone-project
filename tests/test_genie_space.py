@@ -69,6 +69,7 @@ def test_every_mart_is_reachable():
     """A mart nobody can query through the agent is a mart the agent cannot use."""
     expected = {
         "f1.gold.championship_progression",
+        "f1.gold.constructor_standings",
         "f1.gold.driver_performance",
         "f1.gold.lap_pace",
         "f1.gold.race_conditions",
