@@ -1,3 +1,8 @@
+> **Historical record.** This is the Week 1 proposal, kept unedited so the
+> delivered platform can be compared against what was promised. Where the two
+> differ, the built version is authoritative: see `architecture.md` for the
+> design as it stands and `adr/` for the decisions that moved it.
+
 # Capstone Project – Week 1 Preparation
 ### Formula 1 Race Intelligence & Strategy Platform
 
