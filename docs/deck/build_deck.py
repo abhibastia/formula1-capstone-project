@@ -446,7 +446,7 @@ lead(s, top, "A green pipeline update is not the bar. Reconciliation is.",
      "correct — not a comparison against a number typed in from memory.")
 statgrid(s, Inches(3.65), [
     ("0", "reconciliation mismatches\nevery driver, every season", TEAL),
-    ("10 / 10", "validation checks passing\nlast task of both jobs", TEAL),
+    ("11 / 11", "validation checks passing\nlast task of both jobs", TEAL),
     ("14", "SCD-2 history rows\nthe dimension is truly versioned", TEAL),
     ("0", "duplicate natural keys\nanywhere in Silver", TEAL),
 ])
@@ -604,7 +604,7 @@ para(f, "A pipeline whose numbers", 34, TEXT, bold=True, after=2)
 para(f, "you can check —", 34, TEXT, bold=True, after=2)
 para(f, "and whose gaps you can read.", 34, MUTED, bold=True, after=18)
 para(f, "Ingestion is idempotent, Silver deduplicates on natural keys, dimensions carry history, Gold joins them "
-        "as of the race date, and ten validation checks say so on every run — including the weekly one nobody watches.",
+        "as of the race date, and eleven validation checks say so on every run — including the weekly one nobody watches.",
      14, MUTED, after=0, space=1.3)
 statgrid(s, Inches(5.6), [
     ("3", "seasons · 59 rounds", MUTED),
