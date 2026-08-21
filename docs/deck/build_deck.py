@@ -8,7 +8,7 @@ Drag the result into Google Drive and open it — Slides converts it natively.
 
 WHY A SCRIPT
 ------------
-Because the deck changes whenever the platform does, and hand-editing sixteen
+Because the deck changes whenever the platform does, and hand-editing eighteen
 slides is where stale claims survive. When the Genie agent went from "chosen,
 not configured" to built, updating this file was five string replacements and a
 rebuild — after which `grep` could prove the old wording was gone from every
@@ -235,7 +235,7 @@ para(f, "Race Intelligence & Strategy Platform", 44, MUTED, bold=True, after=20)
 para(f, "A governed batch lakehouse on Databricks Free Edition.\n"
         "Public APIs → Unity Catalog Volume → Lakeflow Declarative Pipeline → AI/BI.",
      15, MUTED, after=0, space=1.3)
-chips = ["3 seasons", "59 rounds", "5 Gold marts", "129 tests", "0 reconciliation mismatches"]
+chips = ["3 seasons", "59 rounds", "6 Gold marts", "224 tests", "0 reconciliation mismatches"]
 x = Inches(1.15)
 for i, c in enumerate(chips):
     w = Inches(0.55 + 0.105 * len(c))
@@ -379,7 +379,7 @@ tech = [
     ("Unity Catalog", "Lineage, access control, schema management, audit.", TEAL),
     ("Unity Catalog metric views", "The semantic layer. One definition of a point, shared by the dashboard and Genie.", TEAL),
     ("AI/BI Dashboards", "Reporting over Gold — one dashboard, a page per analyst decision.", TEAL),
-    ("Genie", "Natural-language analytics, scoped to the five Gold marts. 5 certified queries.", TEAL),
+    ("Genie", "Natural-language analytics, scoped to the six Gold marts and the metric view above them. 7 certified queries.", TEAL),
 ]
 row_h = Inches(0.44)
 y = top - Inches(0.05)
@@ -543,7 +543,7 @@ points(s, top, [
 # ══════════════════════ 14 · testing ══════════════════════
 s, top = page("Assurance", "Testing in three layers")
 points(s, top, [
-    ("129 local tests  ·  no Spark  ·  under a second",
+    ("224 local tests  ·  no Spark  ·  under a second",
      "Ingestion logic — pagination against a total that counts inner records, the rate budget, the closed-round predicate, season derivation — plus repository contracts: no legacy DLT API, correct dashboard widget versions, no catalog fallback, every job bounded, every scheduled job validating."),
     ("Static pre-flight across all five Silver files",
      "Every column named in an expectation must exist in the staged view. Otherwise found only by graph analysis: a cluster start and quota, to learn about a typo."),
@@ -609,7 +609,7 @@ para(f, "Ingestion is idempotent, Silver deduplicates on natural keys, dimension
 statgrid(s, Inches(5.6), [
     ("3", "seasons · 59 rounds", MUTED),
     ("6", "Gold marts · 6 decision pages", MUTED),
-    ("129", "automated tests", MUTED),
+    ("224", "automated tests", MUTED),
     ("0", "reconciliation mismatches", TEAL),
 ], h=Inches(1.15))
 
