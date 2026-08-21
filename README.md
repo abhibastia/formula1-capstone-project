@@ -32,7 +32,7 @@ A scheduled job pulls ten Jolpica-F1 endpoints plus measured race-day weather
 from the Open-Meteo ERA5 archive, for every season since 2024, into a Unity
 Catalog Volume as raw JSON. A single triggered Lakeflow pipeline parses, cleans,
 deduplicates and quality-checks that data through a medallion architecture,
-maintains SCD Type 2 driver and constructor dimensions, and publishes five Gold
+maintains SCD Type 2 driver and constructor dimensions, and publishes six Gold
 marts that one AI/BI dashboard reads, organised by analyst decision. Everything is governed by Unity Catalog; nothing
 runs outside Databricks.
 
@@ -46,7 +46,7 @@ Bronze  11 streaming tables      raw capture, warn-level expectations only
 Silver  8 facts + 3 dims         flattened, typed, deduplicated, quarantined
         (2 of them SCD-2)        + one quarantine view per fact
       ↓
-Gold    5 marts + event log      business-ready, dimensions joined as-of race date
+Gold    6 marts + event log      business-ready, dimensions joined as-of race date
       ↓
 AI/BI Dashboard                  one page per analyst decision:
         + Genie agent            driver form · constructors · circuits · championship · trust

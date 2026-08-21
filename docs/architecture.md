@@ -103,7 +103,7 @@ AI/BI Dashboard + Genie agent
 | Silver facts | 8 | result, sprint, qualifying, 2 × standings, weather, pit stop, lap |
 | Silver dimensions | 3 | `dim_driver` and `dim_constructor` SCD-2; `dim_race` an MV |
 | Silver quarantine | 9 | one per fact |
-| Gold marts | 5 | + the pipeline event log |
+| Gold marts | 6 | + the pipeline event log |
 | Dashboard pages | 5 | driver form · constructors · circuits · championship · trust |
 
 There is no `dim_circuit` and no separate `circuits` endpoint: circuit identity
@@ -331,6 +331,7 @@ amended — which, given everything above, is exactly the case that matters.
 |---|---|---|
 | `driver_performance` | driver × race | What happened |
 | `championship_progression` | driver × round | What it cost in the title race |
+| `constructor_standings` | constructor × round | The team title race, from the published standings |
 | `race_conditions` | race | Was it the weather — measured rainfall against retirements |
 | `race_strategy` | driver × race | Was it the pit wall — stops, derived stints, strategy vs the field |
 | `lap_pace` | driver × race | Who was actually fast — clean-lap median, consistency, laps led |
@@ -398,6 +399,7 @@ catalog; `rows = distinct keys` is asserted on every run by
 | Gold | `race_strategy` | driver × race | 1,134 | season, round, driver |
 | Gold | `lap_pace` | driver × race | 1,163 | season, round, driver |
 | Gold | `race_conditions` | race | 59 | season, round |
+| Gold | `constructor_standings` | constructor × round | 601 | season, round, constructor |
 
 Three things this table makes explicit:
 
@@ -434,12 +436,17 @@ field or circuit norms rather than sitting in isolation.
 | `cumulative_points`, `championship_position` | running totals per round | `championship_progression` |
 | `gap_to_leader` | leader's cumulative points − this driver's | `championship_progression` |
 | `title_margin` | P1 points − P2 points, per season | dashboard `ds_driver_standings` |
-| constructor points | `SUM(total_points)` by **as-of-race** team | dashboard `ds_constructor_standings` |
+| constructor `cumulative_points` | published standings, per round | `constructor_standings` |
 
 Sprint points are not optional: race points alone leave 13 of 24 drivers short of
-their official 2024 total. Constructor points are derived rather than read from a
-mart, and reconcile with the published constructor standings with **zero
-mismatches** across every team and season.
+their official 2024 total.
+
+Constructor points are **read from the standings endpoint**, not summed from
+driver results — deliberately, even though both give the same answer. Summing
+reproduces the number; reading the published standings *is* the number, and
+keeping the independent endpoint in Gold is what makes the two reconcilable at
+all. Collapse them into one source and check 14 becomes a tautology. They agree
+with zero mismatches across every team and season.
 
 **Execution — qualifying, pace, pit work, reliability**
 
