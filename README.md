@@ -4,10 +4,13 @@ A governed, end-to-end data pipeline on Databricks Free Edition: public F1 APIs 
 Unity Catalog Volume → Lakeflow Declarative Pipeline (Bronze → Silver → Gold) →
 AI/BI dashboards. Built as a data-engineering capstone.
 
-`docs/architecture.md` is the design record — how the platform works, plus a data
-dictionary in §7. `docs/adr/` holds ten Architecture Decision Records covering
-why it is built this way and what was rejected, including the decisions that
-turned out to be wrong.
+**Documentation.** `docs/architecture.md` is the design record — how the platform
+works, plus a data dictionary in §7. `docs/adr/` holds ten Architecture Decision
+Records covering why it is built this way and what was rejected, including the
+decisions that turned out to be wrong. `docs/runbook.md` is the operational
+manual: how to run it, and every failure mode that has actually occurred here.
+`docs/proposal.md` is the original Week 1 proposal, kept unedited so the two can
+be compared.
 **§7 is the data dictionary**: the grain of every stored dataset, and the
 definition of every metric the project measures.
 
@@ -53,7 +56,7 @@ the platform changes, and nothing fails when it does.
 | `scripts/apply_grants.py` | The Unity Catalog access model, idempotent, no compute |
 | `sql/validation_checks.sql` | Correctness checks — the bar for "done" |
 | `sql/dq_event_log.sql` | Data-quality metrics from the pipeline event log |
-| `dashboards/` | The AI/BI dashboard definition — five decision pages |
+| `dashboards/` | The AI/BI dashboard definition — six decision pages |
 | `databricks.yml`, `resources/` | Asset Bundle: pipeline, two jobs and the dashboard as code |
 | `scripts/bootstrap.sh` | Clone → running platform, in one command |
 | `scripts/` | Catalog provisioning, upload, pipeline run/poll, executable validation |
@@ -64,6 +67,9 @@ the platform changes, and nothing fails when it does.
 | `setup_secrets.py` | Secret scope provisioning — not needed today, see above |
 | `docs/architecture.md` | Design, data dictionary (§7), and criteria coverage |
 | `docs/adr/` | Architecture Decision Records — why, and what else was on the table |
+| `docs/runbook.md` | How to operate it, and every failure that has actually happened |
+| `docs/demo_script.md` | An eight-minute walkthrough, in order |
+| `docs/proposal.md` | The Week 1 proposal, unedited, for comparison against what was built |
 | `CLAUDE.md` | Standing constraints — read before changing anything |
 
 ## Quickstart

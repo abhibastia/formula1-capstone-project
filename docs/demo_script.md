@@ -1,6 +1,6 @@
 # 5-minute demo script
 
-Order matters: lead with the problem, end with the dashboard. The middle three
+Order matters: lead with the problem, end with the dashboard. The middle four
 beats are the ones that separate this from a BI exercise — show the pipeline
 catching something, not just producing something.
 
@@ -26,8 +26,8 @@ wrapping the untouched `MRData`.
 **3. The pipeline and lineage (45s)**
 
 Open the pipeline DAG, then the Unity Catalog lineage graph: Volume → 11 Bronze
-→ 8 Silver facts and 3 dimensions → 6 Gold marts → one dashboard, five decision pages. One pipeline,
-three schemas.
+→ 8 Silver facts and 3 dimensions → 6 Gold marts and a metric view → one
+dashboard of six decision pages, plus a Genie agent. One pipeline, three schemas.
 
 **4. Data quality — show it catching something (60s)** ← *the important beat*
 
@@ -59,19 +59,32 @@ Show Lawson: RB → Red Bull → RB across 2025.
 
 **6. Correctness (45s)**
 
-Run check 1 — the reconciliation. Zero rows returned.
+Run checks 1 and 14 — the two reconciliations. Zero rows each.
 
-> Say: "This compares two independent endpoints against each other: points summed
-> from race and sprint results versus the standings endpoint. They agree exactly.
-> That also caught a real bug — race points alone leave thirteen of twenty-four
-> drivers short, because sprint races award championship points."
+> Say: "Each compares two independent endpoints against each other. Points summed
+> from race and sprint results versus the driver standings endpoint; and the same
+> again for constructors. They agree exactly. That also caught a real bug — race
+> points alone leave thirteen of twenty-four drivers short, because sprint races
+> award championship points."
 
-**7. The dashboard (30s)**
+**7. The semantic layer (30s)**
 
-Championship progression, grid-vs-finish, constructor points, and the DQ tile.
+One query against `f1.gold.driver_metrics`, then change `` `Team` `` to
+`` `Driver` `` and rerun.
 
-> Close on: "Every tile reads Gold only, and the data-quality tile is on the same
-> page as the analytics — the pipeline reports on its own health."
+> Say: "Same definition, different grain, both correct. A standard view fixes its
+> aggregation at creation, so averaging Ferrari's three drivers gives 11.1 points
+> per start when the answer is 13.6 — Bearman's single substitute appearance
+> counting as much as Leclerc's season."
+
+**8. The dashboard (45s)**
+
+Six pages, one per analyst decision: Standings, Driver Form, Constructor
+Benchmarking, Circuit Priors, Championship Swing, Trust.
+
+> Close on: "Pages are named after the question, not the table underneath. Every
+> tile reads Gold only, and the Trust page is the pipeline reporting on its own
+> health — expectations passed and failed, per dataset, per run."
 
 ---
 

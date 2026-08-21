@@ -116,6 +116,43 @@ def test_expectation_columns_resolve():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_every_document_is_reachable_from_the_readme():
+    """A document nothing links to is a document nobody reads.
+
+    `docs/runbook.md` is a required deliverable and was referenced from nowhere
+    — not the README, not the architecture document, not the ADRs. A reviewer
+    had to browse docs/ to find it, which is the same as it not existing.
+    """
+    readme = (ROOT / "README.md").read_text()
+    unlinked = [p.name for p in sorted((ROOT / "docs").glob("*.md"))
+                if p.name not in readme]
+    assert not unlinked, (
+        f"documents not linked from the README: {unlinked}. "
+        f"Add them to the Layout table, or delete them."
+    )
+
+
+def test_no_document_claims_the_wrong_dashboard_page_count():
+    """The demo script said five decision pages when there were six.
+
+    Counts written in prose drift silently, and the demo script is the one
+    document somebody reads aloud under pressure.
+    """
+    pages = len(json.loads(
+        (ROOT / "dashboards" / "f1_race_intelligence.lvdash.json").read_text())["pages"])
+    words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven"}
+    for doc in sorted((ROOT / "docs").glob("*.md")) + [ROOT / "README.md"]:
+        if doc.name == "proposal.md":      # historical record, deliberately unedited
+            continue
+        text = doc.read_text()
+        for n, word in words.items():
+            if n == pages:
+                continue
+            for claim in (f"{word} decision pages", f"{n} decision pages"):
+                assert claim not in text, (
+                    f"{doc.name} claims {claim!r} but the dashboard has {pages}")
+
+
 # ─────────────────────────────── dashboards ──────────────────────────────
 
 def _widgets(dashboard):
