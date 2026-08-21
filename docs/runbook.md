@@ -190,6 +190,23 @@ second:
 .venv/bin/python -m pytest
 ```
 
+**After a pipeline run that lands a new round**, before touching any doc by
+hand:
+
+```bash
+python3 scripts/check_doc_counts.py
+```
+
+Recomputes the round count, lap-timing totals, the quarantine census, and the
+championship reconciliation from the local `landing/` cache, and checks the
+literal number each doc currently states against that recomputation — no
+Spark, no warehouse. It caught the same class of drift a 2026-08-22 audit
+found by hand (docs still describing a five-Gold-mart platform months after a
+sixth mart shipped): every one of those numbers goes stale again the next race
+weekend, not just once. A few things it does *not* cover — the pace-vs-finish
+and strategy findings, `dim_driver`'s SCD-2 history — need a warehouse query;
+it prints those as a reminder rather than silently skipping them.
+
 ---
 
 ## 4. When it breaks
