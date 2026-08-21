@@ -30,7 +30,7 @@ BUILDER = ROOT / "docs" / "deck" / "build_deck.py"
 EMU_PER_INCH = 914400
 # Pinned so a slide silently disappearing from the builder is caught. Update
 # deliberately when the deck genuinely changes length.
-EXPECTED_SLIDES = 17
+EXPECTED_SLIDES = 18
 
 
 @pytest.fixture(scope="module")
@@ -67,9 +67,32 @@ def test_every_shape_lands_on_the_slide(deck):
 
 
 def test_no_slide_is_empty(deck):
+    """A slide with nothing on it is one somebody forgot to finish.
+
+    Content, not text: a full-bleed diagram is a complete slide, and the
+    picture carries its own title.
+    """
+    PICTURE = 13
     for i, slide in enumerate(deck.slides, 1):
         text = "".join(sh.text_frame.text for sh in slide.shapes if sh.has_text_frame)
-        assert text.strip(), f"slide {i} has no text"
+        pictures = [sh for sh in slide.shapes if sh.shape_type == PICTURE]
+        assert text.strip() or pictures, f"slide {i} has neither text nor an image"
+
+
+def test_footers_match_their_slide_position(deck):
+    """A footer that disagrees with its slide is invisible until someone points.
+
+    The number used to be passed to page() by hand, so inserting a slide put
+    every footer after it out by one. It is derived from the deck's real length
+    now; this is what stops that regressing.
+    """
+    wrong = []
+    for i, slide in enumerate(deck.slides, 1):
+        numbers = [sh.text_frame.text.strip() for sh in slide.shapes
+                   if sh.has_text_frame and sh.text_frame.text.strip().isdigit()]
+        if numbers and int(numbers[0]) != i:
+            wrong.append(f"slide {i} shows {numbers[0]}")
+    assert not wrong, "footers out of step: " + ", ".join(wrong)
 
 
 def test_text_is_unlikely_to_overflow_its_box(deck):

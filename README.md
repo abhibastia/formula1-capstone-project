@@ -59,7 +59,7 @@ the platform changes, and nothing fails when it does.
 | `scripts/` | Catalog provisioning, upload, pipeline run/poll, executable validation |
 | `tests/` | Local suite (`pytest`) and the Spark suite that runs on Databricks |
 | `genie/` | Genie agent definition — natural-language access, scoped to Gold |
-| `docs/deck/build_deck.py` | The capstone presentation (17 slides), generated — `python3 docs/deck/build_deck.py` |
+| `docs/deck/build_deck.py` | The capstone presentation (18 slides), generated — run `build_architecture.py` first |
 | `docs/deck/build_architecture.py` | The architecture diagram, generated — counts asserted against the repo |
 | `setup_secrets.py` | Secret scope provisioning — not needed today, see above |
 | `docs/architecture.md` | Design, data dictionary (§7), and criteria coverage |
