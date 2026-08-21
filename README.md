@@ -38,21 +38,11 @@ maintains SCD Type 2 driver and constructor dimensions, and publishes six Gold
 marts that one AI/BI dashboard reads, organised by analyst decision. Everything is governed by Unity Catalog; nothing
 runs outside Databricks.
 
-```
-Jolpica-F1 REST API
-      ↓  scheduled Job (rate-limited, retried, idempotent)
-UC Volume  f1.raw.landing        raw JSON, partitioned by endpoint/season/round
-      ↓  Auto Loader
-Bronze  11 streaming tables      raw capture, warn-level expectations only
-      ↓
-Silver  8 facts + 3 dims         flattened, typed, deduplicated, quarantined
-        (2 of them SCD-2)        + one quarantine view per fact
-      ↓
-Gold    6 marts + event log      business-ready, dimensions joined as-of race date
-      ↓
-AI/BI Dashboard                  one page per analyst decision:
-        + Genie agent            driver form · constructors · circuits · championship · trust
-```
+![Architecture](docs/assets/architecture.png)
+
+Regenerate with `python3 docs/deck/build_architecture.py` — the diagram is built
+from code for the same reason the deck is: one drawn by hand drifts the moment
+the platform changes, and nothing fails when it does.
 
 ## Layout
 
@@ -69,7 +59,8 @@ AI/BI Dashboard                  one page per analyst decision:
 | `scripts/` | Catalog provisioning, upload, pipeline run/poll, executable validation |
 | `tests/` | Local suite (`pytest`) and the Spark suite that runs on Databricks |
 | `genie/` | Genie agent definition — natural-language access, scoped to Gold |
-| `docs/deck/build_deck.py` | The capstone presentation (18 slides), generated — `python3 docs/deck/build_deck.py` |
+| `docs/deck/build_deck.py` | The capstone presentation (17 slides), generated — `python3 docs/deck/build_deck.py` |
+| `docs/deck/build_architecture.py` | The architecture diagram, generated — counts asserted against the repo |
 | `setup_secrets.py` | Secret scope provisioning — not needed today, see above |
 | `docs/architecture.md` | Design, data dictionary (§7), and criteria coverage |
 | `docs/adr/` | Architecture Decision Records — why, and what else was on the table |
