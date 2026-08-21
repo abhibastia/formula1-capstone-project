@@ -15,6 +15,7 @@ pipeline never has to install it.
 
 import importlib.util
 import math
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -30,7 +31,7 @@ BUILDER = ROOT / "docs" / "deck" / "build_deck.py"
 EMU_PER_INCH = 914400
 # Pinned so a slide silently disappearing from the builder is caught. Update
 # deliberately when the deck genuinely changes length.
-EXPECTED_SLIDES = 18
+EXPECTED_SLIDES = 19
 
 
 @pytest.fixture(scope="module")
@@ -94,6 +95,29 @@ def test_text_is_unlikely_to_overflow_its_box(deck):
                 problems.append(f"slide {i}: needs ~{needed:.2f}in in a {h_in:.2f}in box "
                                 f"| {shape.text_frame.text[:40]!r}")
     assert not problems, "text likely overflows:\n  " + "\n  ".join(problems)
+
+
+def test_screenshot_assets_are_in_the_repository():
+    """A deck that depends on ~/Desktop is a deck only one machine can build."""
+    assets = ROOT / "docs" / "deck" / "assets"
+    referenced = set(re.findall(r'screenshot\(s,\s*"([^"]+)"', BUILDER.read_text()))
+    assert referenced, "no screenshots referenced — remove this test if that is intended"
+    for name in referenced:
+        assert (assets / name).exists(), f"deck references {name}, which is not in docs/deck/assets/"
+
+
+def test_downstream_work_is_labelled_as_a_prototype():
+    """The copilot is a separate project and an early one.
+
+    Showing it is fair; letting a slide imply it is a finished capstone
+    deliverable is not. This fails if the qualifier is edited away.
+    """
+    source = BUILDER.read_text()
+    if "copilot-overview.png" not in source:
+        return
+    assert "prototype" in source.lower(), (
+        "the copilot screenshots are in the deck without being labelled a prototype"
+    )
 
 
 def test_deck_claims_match_the_repository():
