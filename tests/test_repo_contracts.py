@@ -142,8 +142,6 @@ def test_no_document_claims_the_wrong_dashboard_page_count():
         (ROOT / "dashboards" / "f1_race_intelligence.lvdash.json").read_text())["pages"])
     words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven"}
     for doc in sorted((ROOT / "docs").glob("*.md")) + [ROOT / "README.md"]:
-        if doc.name == "proposal.md":      # historical record, deliberately unedited
-            continue
         text = doc.read_text()
         for n, word in words.items():
             if n == pages:

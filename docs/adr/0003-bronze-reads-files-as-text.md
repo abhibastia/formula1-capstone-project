@@ -1,8 +1,5 @@
 # 3. Bronze reads files as text, not JSON
 
-Date: 2026-08-06
-Status: Accepted
-
 ## Context
 
 Bronze ingests eleven endpoints with Auto Loader. Reading them as JSON is the

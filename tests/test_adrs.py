@@ -22,7 +22,6 @@ INDEX = ADR_DIR / "README.md"
 
 REQUIRED_SECTIONS = ("## Context", "## Decision", "## Consequences",
                      "## Alternatives considered")
-VALID_STATUS = {"Accepted", "Superseded", "Deprecated", "Proposed"}
 
 
 def test_adr_directory_exists_and_is_populated():
@@ -39,15 +38,23 @@ def test_adr_has_the_required_sections(path):
 
 
 @pytest.mark.parametrize("path", ADRS, ids=lambda p: p.stem)
-def test_adr_has_a_title_date_and_valid_status(path):
+def test_adr_has_a_title(path):
+    """Date and Status lines were dropped deliberately — git history is the
+    date, and every ADR here is a decision that shipped, so a status field
+    with one value in ten records was not carrying its weight."""
     text = path.read_text()
     assert re.match(r"^# \d+\. \S", text), f"{path.name} must open with '# N. Title'"
-    assert re.search(r"^Date: \d{4}-\d{2}-\d{2}$", text, re.M), \
-        f"{path.name} has no ISO date"
-    status = re.search(r"^Status: (\w+)$", text, re.M)
-    assert status, f"{path.name} has no Status line"
-    assert status.group(1) in VALID_STATUS, \
-        f"{path.name} status {status.group(1)!r} is not one of {sorted(VALID_STATUS)}"
+
+
+@pytest.mark.parametrize("path", ADRS, ids=lambda p: p.stem)
+def test_adr_body_starts_right_after_the_title(path):
+    """No stray blank-heavy header block should survive the Date/Status removal."""
+    lines = path.read_text().split("\n")
+    assert lines[1] == "", f"{path.name}: line after the title must be blank"
+    assert lines[2] == "## Context", (
+        f"{path.name}: expected '## Context' immediately after the title, "
+        f"got {lines[2]!r} — a leftover Date/Status fragment?"
+    )
 
 
 @pytest.mark.parametrize("path", ADRS, ids=lambda p: p.stem)

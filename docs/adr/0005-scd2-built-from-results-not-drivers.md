@@ -1,8 +1,5 @@
 # 5. SCD-2 dimensions built from results, not `/drivers`
 
-Date: 2026-08-07
-Status: Accepted
-
 ## Context
 
 The criteria require change data capture, and a driver dimension is the obvious

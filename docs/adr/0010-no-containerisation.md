@@ -1,8 +1,5 @@
 # 10. No containerisation
 
-Date: 2026-08-06
-Status: Accepted
-
 ## Context
 
 The criteria ask for containerisation "if needed", which requires an explicit

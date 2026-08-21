@@ -453,6 +453,26 @@ express. It is still computed *from* the view at both grains — team pace comes
 from `MEASURE(Pace Deficit)` at team level rather than by averaging driver
 averages, which would silently reweight it by driver count.
 
+### Natural-language access — Genie
+
+A Genie agent (`genie/f1_gold_space.json`) sits over the six Gold marts, the
+metric view over them, and nothing else. The scope is the design decision: the
+marts resolve the as-of-race-date constructor join and pre-compute
+`total_points`, so an agent reading Silver would produce answers that are
+plausible, well-formatted and attributed to the wrong team.
+
+It reuses the grant model rather than bypassing it — queries run as the asker,
+so a consumer reaching the agent still cannot read Bronze.
+
+Seven certified SQL examples teach the query patterns, one of them against
+`driver_metrics` and asserted to use `MEASURE()` rather than raw aggregation.
+A single instruction block carries the domain rules that change answers. Both
+example queries and instructions are asserted by
+`tests/test_genie_space.py`, which also enforces the API's own constraints
+(32-hex ids unique across three lists, array-valued text fields, at most one
+instruction entry, sorted lists) so a malformed definition fails locally rather
+than on a create call.
+
 ## 7. Grain and metrics
 
 ### 7.1 What is stored, and at what grain
@@ -715,7 +735,7 @@ slow drift below that threshold is invisible.
 
 Three layers, each catching what the others cannot.
 
-**Local, no Spark, under a second** — `pytest`, 129 tests:
+**Local, no Spark, under a second** — `pytest`, 224 tests:
 
 - Ingestion logic: pagination against a `total` that counts inner records,
   the rate budget, the race-calendar parse, `should_write`'s closed-round
@@ -723,11 +743,19 @@ Three layers, each catching what the others cannot.
 - Repository contracts: no legacy `dlt` API, SCD-2 columns double-underscored,
   dashboard widget versions correct, no field named `constructor`, no catalog
   fallback in a pipeline file, no pinned profile in `databricks.yml`, every job
-  bounded and alerting, every scheduled job validating.
+  bounded and alerting, every scheduled job validating, every document linked
+  from the README, no stale page or mart count in prose.
 - Bundle structure: every resource path exists, every `${var.*}` is declared and
   used, every `${resources.*}` reference resolves.
-- The access model: the consumer tier reaches Gold and nothing below it, and
-  nothing is granted `WRITE_VOLUME`.
+- The access model: the consumer tier reaches Gold — including the metric view
+  — and nothing below it, and nothing is granted `WRITE_VOLUME`.
+- The Genie agent: scope, certified-query correctness, and the shape constraints
+  the create API enforces.
+- The ADRs: required sections present, numbering contiguous, every consequence
+  section names a real cost.
+- The deck and the architecture diagram: both still build, every shape lands
+  inside its slide or canvas, and every count either states match the
+  repository or is asserted absent.
 
 **Pre-flight, static** — `scripts/check_expectations.py` walks all five Silver
 files and verifies every column named in an expectation exists in the staged
@@ -753,24 +781,6 @@ and skips honestly when they are not.
 Every contract assertion corresponds to a mistake that was actually made here
 and cost either a failed pipeline update or a dashboard tile that rendered
 nothing.
-
-### 6.1 Natural-language access
-
-A Genie agent (`genie/f1_gold_space.json`) sits over the five Gold marts and
-nothing else. The scope is the design decision: the marts resolve the
-as-of-race-date constructor join and pre-compute `total_points`, so an agent
-reading Silver would produce answers that are plausible, well-formatted and
-attributed to the wrong team.
-
-It reuses the grant model rather than bypassing it — queries run as the asker,
-so a consumer reaching the agent still cannot read Bronze.
-
-Five certified SQL examples teach the query patterns, and a single instruction
-block carries the domain rules that change answers. Both are asserted by
-`tests/test_genie_space.py`, which also enforces the API's own constraints
-(32-hex ids unique across three lists, array-valued text fields, at most one
-instruction entry, sorted lists) so a malformed definition fails locally rather
-than on a create call.
 
 ## 13. Deliberately out of scope
 
@@ -826,12 +836,12 @@ Assessed against the technical-execution minimum criteria.
 | Change data capture | **Met** | Auto CDC SCD Type 2 on both dimensions; natural-key dedupe on facts — §5.3 |
 | Change tracking for consumers | **Partial** | CDF is unsupported on materialised views, which is where the facts live. SCD-2 gives version history on dimensions — §5.4 |
 | Serving model paradigm | **Met** | Silver star schema, Gold OBT marts |
-| Semantic model consistency | **Partial** | Metrics defined once in Gold columns; no separate metric-view layer |
+| Semantic model consistency | **Met** | Mart columns plus `driver_metrics`, a governed UC metric view — §6 |
 | Access-pattern-aware design | **Met** | Clustering, materialisation, denormalisation — §6 |
 | Orchestration | **Met** | Lakeflow Jobs, task dependency, schedule |
 | Containerisation | **N/A** | Serverless with declared environments — §12 |
 | Data quality checks | **Met** | Expectations, 9 quarantine tables, executable validation — §9 |
-| Unit test for transformation logic | **Met** | 129 local tests + Spark tests on the pipeline's own parsers — §11 |
+| Unit test for transformation logic | **Met** | 224 local tests + Spark tests on the pipeline's own parsers — §12 |
 | Serving layer accessible downstream | **Met** | Gold via SQL warehouse, AI/BI dashboard |
 | Ingestion/processing failure handling | **Met** | §8 |
 | Malformed files, missing values | **Met** | §8 |
@@ -854,9 +864,7 @@ Assessed against the technical-execution minimum criteria.
    publication" would mean converting them to streaming tables and rebuilding
    the deduplication as an Auto CDC flow. Worth doing only if the question
    becomes a requirement rather than an ambition.
-2. **Metric views.** A semantic layer over Gold if the mart set grows. Today the
-   mart columns are that layer.
-3. **A second identity.** The access model cannot be demonstrated on a
+2. **A second identity.** The access model cannot be demonstrated on a
    single-user workspace, because ownership outranks every grant.
-4. **Eight quarantined `driver_standing` rows.** Rejected on `position_present`
+3. **Eight quarantined `driver_standing` rows.** Rejected on `position_present`
    and never explained. The census reports them rather than claiming zero.

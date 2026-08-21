@@ -1,8 +1,5 @@
 # 4. Silver facts are materialised views, not Auto CDC streaming tables
 
-Date: 2026-08-07
-Status: Accepted
-
 ## Context
 
 A Formula 1 result is provisional when published: stewards apply penalties after

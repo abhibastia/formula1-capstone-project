@@ -9,8 +9,7 @@ works, plus a data dictionary in §7. `docs/adr/` holds ten Architecture Decisio
 Records covering why it is built this way and what was rejected, including the
 decisions that turned out to be wrong. `docs/runbook.md` is the operational
 manual: how to run it, and every failure mode that has actually occurred here.
-`docs/proposal.md` is the original Week 1 proposal, kept unedited so the two can
-be compared.
+
 **§7 is the data dictionary**: the grain of every stored dataset, and the
 definition of every metric the project measures.
 
@@ -69,7 +68,6 @@ the platform changes, and nothing fails when it does.
 | `docs/adr/` | Architecture Decision Records — why, and what else was on the table |
 | `docs/runbook.md` | How to operate it, and every failure that has actually happened |
 | `docs/demo_script.md` | An eight-minute walkthrough, in order |
-| `docs/proposal.md` | The Week 1 proposal, unedited, for comparison against what was built |
 | `CLAUDE.md` | Standing constraints — read before changing anything |
 
 ## Quickstart
