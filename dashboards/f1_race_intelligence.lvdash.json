@@ -136,6 +136,21 @@
       ]
     },
     {
+      "name": "ds_race_conditions",
+      "displayName": "Race conditions",
+      "queryLines": [
+        "SELECT season, round, race_date, race_name, circuit_name, circuit_country,\n",
+        "       weather_available, precipitation_mm, rain_mm,\n",
+        "       temp_max_c, temp_min_c, wind_max_kmh, conditions,\n",
+        "       was_wet, rainfall_verdict,\n",
+        "       drivers_classified, retirements, retirement_rate_pct,\n",
+        "       avg_abs_positions_changed AS overtaking_index,\n",
+        "       winner, winner_grid_position, winning_constructor\n",
+        "FROM race_conditions\n",
+        "WHERE weather_available\n"
+      ]
+    },
+    {
       "name": "ds_championship",
       "displayName": "Championship progression",
       "queryLines": [
@@ -1889,6 +1904,19 @@
                   ],
                   "disaggregated": false
                 }
+              },
+              {
+                "name": "q_f_circuit_country_1",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "circuit_country",
+                      "expression": "`circuit_country`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
               }
             ],
             "spec": {
@@ -1900,6 +1928,11 @@
                     "fieldName": "circuit_country",
                     "displayName": "Country",
                     "queryName": "q_f_circuit_country_0"
+                  },
+                  {
+                    "fieldName": "circuit_country",
+                    "displayName": "Country",
+                    "queryName": "q_f_circuit_country_1"
                   }
                 ]
               },
@@ -2305,6 +2338,492 @@
             "y": 11,
             "width": 12,
             "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "t_circuit_weather",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Conditions — what the weather does here, and what it does not"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "k_circuit_wet",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "wet",
+                      "expression": "SUM(CAST(`was_wet` AS INT))"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "wet",
+                  "displayName": "Races flagged wet"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Races flagged wet",
+                "showDescription": true,
+                "description": "Measured daily rainfall at or above 1.0 mm — not a report of rain during the race"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 19,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "k_circuit_rain",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "avg(precipitation_mm)",
+                      "expression": "AVG(`precipitation_mm`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(precipitation_mm)",
+                  "displayName": "Mean rainfall (mm)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Mean rainfall (mm)",
+                "showDescription": true,
+                "description": "Race day, at the circuit"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 19,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "k_circuit_retire",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "avg(retirement_rate_pct)",
+                      "expression": "AVG(`retirement_rate_pct`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(retirement_rate_pct)",
+                  "displayName": "Mean retirement rate %",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Mean retirement rate %",
+                "showDescription": true,
+                "description": "Compare against the wet split below"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 19,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "k_circuit_churn",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "avg(overtaking_index)",
+                      "expression": "AVG(`overtaking_index`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(overtaking_index)",
+                  "displayName": "Mean positions changed",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Mean positions changed",
+                "showDescription": true,
+                "description": "Per driver, per race"
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 19,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "s_rain_retirements",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "precipitation_mm",
+                      "expression": "`precipitation_mm`"
+                    },
+                    {
+                      "name": "retirement_rate_pct",
+                      "expression": "`retirement_rate_pct`"
+                    },
+                    {
+                      "name": "rainfall_verdict",
+                      "expression": "`rainfall_verdict`"
+                    },
+                    {
+                      "name": "race_name",
+                      "expression": "`race_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "scatter",
+              "encodings": {
+                "x": {
+                  "fieldName": "precipitation_mm",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Rainfall on race day (mm)"
+                },
+                "y": {
+                  "fieldName": "retirement_rate_pct",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Retirement rate (%)"
+                },
+                "color": {
+                  "fieldName": "rainfall_verdict",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "flagged wet by rainfall",
+                        "color": "#0072B2"
+                      },
+                      {
+                        "value": "under the wet threshold",
+                        "color": "#E69F00"
+                      },
+                      {
+                        "value": "no observation",
+                        "color": "#6E7B85"
+                      }
+                    ]
+                  },
+                  "displayName": "rainfall_verdict"
+                }
+              },
+              "mark": {
+                "opacity": 0.7
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Does rain cause chaos? Each point is a race",
+                "showDescription": true,
+                "description": "Monza 2024 measured 19.1 mm and ran dry. A daily total cannot tell rain that fell overnight from rain that fell during the race, which is why the mart names the source of the flag rather than asserting it rained."
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 21,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "b_wet_churn",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "rainfall_verdict",
+                      "expression": "`rainfall_verdict`"
+                    },
+                    {
+                      "name": "avg(overtaking_index)",
+                      "expression": "AVG(`overtaking_index`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "avg(overtaking_index)",
+                      "displayName": "Mean positions changed per driver"
+                    }
+                  ]
+                },
+                "y": {
+                  "fieldName": "rainfall_verdict",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Rainfall verdict"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Does rain change the racing?",
+                "showDescription": true,
+                "description": "If wet races produced more overtaking, these bars would separate. Read it with the scatter — the honest answer here is that they barely do."
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 21,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "t_circuit_cond_table",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Race by race, wettest first"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 28,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "tb_race_conditions",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_race_conditions",
+                  "fields": [
+                    {
+                      "name": "race_name",
+                      "expression": "`race_name`"
+                    },
+                    {
+                      "name": "circuit_country",
+                      "expression": "`circuit_country`"
+                    },
+                    {
+                      "name": "precipitation_mm",
+                      "expression": "`precipitation_mm`"
+                    },
+                    {
+                      "name": "temp_max_c",
+                      "expression": "`temp_max_c`"
+                    },
+                    {
+                      "name": "conditions",
+                      "expression": "`conditions`"
+                    },
+                    {
+                      "name": "rainfall_verdict",
+                      "expression": "`rainfall_verdict`"
+                    },
+                    {
+                      "name": "retirement_rate_pct",
+                      "expression": "`retirement_rate_pct`"
+                    },
+                    {
+                      "name": "overtaking_index",
+                      "expression": "`overtaking_index`"
+                    },
+                    {
+                      "name": "winner",
+                      "expression": "`winner`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "race_name",
+                    "displayName": "Race",
+                    "type": "string"
+                  },
+                  {
+                    "fieldName": "circuit_country",
+                    "displayName": "Country",
+                    "type": "string"
+                  },
+                  {
+                    "fieldName": "precipitation_mm",
+                    "displayName": "Rain (mm)",
+                    "type": "float"
+                  },
+                  {
+                    "fieldName": "temp_max_c",
+                    "displayName": "Max temp °C",
+                    "type": "float"
+                  },
+                  {
+                    "fieldName": "conditions",
+                    "displayName": "Conditions",
+                    "type": "string"
+                  },
+                  {
+                    "fieldName": "rainfall_verdict",
+                    "displayName": "Verdict",
+                    "type": "string"
+                  },
+                  {
+                    "fieldName": "retirement_rate_pct",
+                    "displayName": "Retired %",
+                    "type": "float"
+                  },
+                  {
+                    "fieldName": "overtaking_index",
+                    "displayName": "Positions changed",
+                    "type": "float"
+                  },
+                  {
+                    "fieldName": "winner",
+                    "displayName": "Winner",
+                    "type": "string"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Race conditions and what happened",
+                "showDescription": true,
+                "description": "weather_available = false is excluded here: ERA5 lags about five days, and a race with no observation is not a dry race."
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 29,
+            "width": 12,
+            "height": 8
           }
         }
       ]

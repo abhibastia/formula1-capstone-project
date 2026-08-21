@@ -53,6 +53,20 @@ def test_agent_excludes_tables_this_project_does_not_own(identifier):
     )
 
 
+def test_metric_view_measures_are_wrapped():
+    """`MEASURE()` is mandatory on a metric view, and `SELECT *` is unsupported.
+
+    A certified query that reads a metric view without MEASURE() teaches the
+    model a pattern that always fails.
+    """
+    for entry in SQLS:
+        sql = "".join(entry["sql"])
+        if "driver_metrics" not in sql:
+            continue
+        assert "MEASURE(" in sql, f"certified SQL {entry['id']} reads the metric view without MEASURE()"
+        assert "SELECT *" not in sql.upper(), f"certified SQL {entry['id']} uses SELECT * on a metric view"
+
+
 def test_certified_sql_stays_inside_gold():
     for entry in SQLS:
         sql = "".join(entry["sql"])
@@ -70,6 +84,7 @@ def test_every_mart_is_reachable():
     expected = {
         "f1.gold.championship_progression",
         "f1.gold.constructor_standings",
+        "f1.gold.driver_metrics",
         "f1.gold.driver_performance",
         "f1.gold.lap_pace",
         "f1.gold.race_conditions",

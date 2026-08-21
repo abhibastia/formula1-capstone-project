@@ -212,6 +212,21 @@ does not own the catalog or schemas — a `bundle destroy` that dropped them wou
 take the data with it. The script uses the UC permissions API, so it costs no
 compute and works with the daily quota exhausted.
 
+### Semantic layer — the metric view
+
+`f1.gold.driver_metrics` is a Unity Catalog metric view over
+`driver_performance`, defined in `sql/metrics/driver_performance_metrics.sql`.
+Thirteen governed measures across nine dimensions, queried with `MEASURE()`:
+
+```sql
+SELECT `Team`, MEASURE(`Points Per Start`), MEASURE(`DNF Rate`)
+FROM f1.gold.driver_metrics WHERE `Season` = 2024 GROUP BY ALL
+```
+
+It exists so the dashboard, the Genie agent and an ad-hoc query resolve
+`Total Points` to the same expression by construction rather than by everyone
+remembering. Verified in parity with the mart: zero drivers disagreeing.
+
 ### Natural-language access — Genie
 
 `genie/f1_gold_space.json` defines a Genie agent scoped to the five Gold marts.

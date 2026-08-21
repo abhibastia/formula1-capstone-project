@@ -399,9 +399,47 @@ Metric definitions live in the mart columns, not in dashboard tiles — `is_win`
 once in Gold. A tile that counts wins and a tile that ranks drivers are counting
 the same thing by construction.
 
-**Gap:** there is no separate metric-definition view layer. At this scale the
-mart columns are that layer; if the mart set grows, unified metric views over
-Gold would be the next step.
+### Semantic layer — the metric view
+
+`f1.gold.driver_metrics` is a Unity Catalog **metric view** over
+`driver_performance`, defined in `sql/metrics/driver_performance_metrics.sql`.
+It is the governed answer to "what is a point, and who decides".
+
+Before it, every metric was defined once *per surface*: `total_points` as a mart
+column, `pace_vs_team_pct` in a dashboard dataset, and the rule "always use
+total_points" in the Genie agent's instruction block. Those agreed because one
+person wrote all three. A metric view makes them agree structurally — the
+dashboard, Genie and an ad-hoc query resolve the same name to the same
+expression, enforced by the catalog.
+
+Measures are queried through `MEASURE()`; `SELECT *` is unsupported:
+
+```sql
+SELECT `Team`, MEASURE(`Points Per Start`), MEASURE(`DNF Rate`)
+FROM f1.gold.driver_metrics
+WHERE `Season` = 2024
+GROUP BY ALL
+```
+
+Thirteen measures — points split by race and sprint, wins, podiums, starts,
+retirements, DNF rate, average grid and finish, places made up, points finish
+rate and points per start — across nine dimensions including `Team`, which
+resolves to `constructor_name_as_of_race` so the as-of-race attribution survives
+into the semantic layer rather than being re-derived per consumer.
+
+`Points Per Start` is the measure that justifies the mechanism: a ratio that
+re-aggregates correctly at any grain, which a standard view cannot do because its
+aggregation is fixed at creation.
+
+Verified in parity with the mart it sits on — zero drivers disagreeing on
+`Total Points` for 2024 — and granted to the consumer tier by
+`scripts/apply_grants.py` rather than by hand.
+
+**Remaining gap:** the dashboard datasets still compute their own aggregates
+rather than reading the metric view. `pace_vs_team_pct` in particular has no
+metric-view equivalent because it needs a per-team window before the driver-level
+aggregate. Migrating the dashboard onto measures is the next step, not a
+finished one.
 
 ## 7. Grain and metrics
 
