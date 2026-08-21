@@ -102,7 +102,7 @@ databricks bundle summary -t dev --profile <profile>        # find the ids
 databricks lakeview publish <id> --warehouse-id <warehouse-id> --profile <profile>
 ```
 
-There are two dashboards and each publishes separately. Forgetting this is why
+Forgetting this is why
 tiles look empty to everyone except the person who edited them.
 
 **A blank tile is usually the spec, not the data.** Three causes, all of which

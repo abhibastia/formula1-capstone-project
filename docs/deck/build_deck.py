@@ -209,7 +209,7 @@ statgrid(s, top, [
     ("11", "Bronze streaming tables\none per endpoint", TEXT),
     ("8 + 3", "Silver facts + dimensions\ntwo dimensions SCD Type 2", TEXT),
     ("5", "Gold marts\nclustered by season, round", TEXT),
-    ("2 + 1", "AI/BI dashboards\nplus a Genie agent over Gold", TEXT),
+    ("5 + 1", "dashboard pages, one per decision\nplus a Genie agent over Gold", TEXT),
     ("65,862", "lap timings — the finest grain", BLUE),
     ("9", "quarantine views, one per fact", AMBER),
     ("129", "automated tests", TEAL),
@@ -271,7 +271,7 @@ node(pipe_x + 2 * (PW + PG), y2, PW, Inches(1.15), "Gold",
      "materialised marts, dims joined\nas-of race date, clustered", BLUE)
 arrow_r(pipe_x + 3 * PW + 2 * PG + Inches(0.02), y2 + Inches(0.46))
 node(pipe_x + 3 * (PW + PG), y2, PW, Inches(1.15), "Serving",
-     "2 AI/BI dashboards\nGenie agent — ask in English", TEAL)
+     "1 AI/BI dashboard, 5 decision pages\nGenie agent — ask in English", TEAL)
 
 y3 = Inches(4.78)
 sw = (BW - Inches(0.36)) / 2
@@ -305,7 +305,7 @@ tech = [
     ("Lakeflow Declarative Pipeline", "Declarative medallion, built-in expectations, lineage. Triggered, so it runs batch.", TEAL),
     ("Delta Lake", "Reliable lakehouse table format with time travel.", TEAL),
     ("Unity Catalog", "Lineage, access control, schema management, audit.", TEAL),
-    ("AI/BI Dashboards", "Reporting over Gold — two dashboards, published.", TEAL),
+    ("AI/BI Dashboards", "Reporting over Gold — one dashboard, a page per analyst decision.", TEAL),
     ("Genie", "Natural-language analytics, scoped to the five Gold marts. 5 certified queries.", TEAL),
 ]
 row_h = Inches(0.44)
@@ -503,7 +503,7 @@ para(f, "Ingestion is idempotent, Silver deduplicates on natural keys, dimension
      14, MUTED, after=0, space=1.3)
 statgrid(s, Inches(5.6), [
     ("3", "seasons · 59 rounds", MUTED),
-    ("5", "Gold marts · 2 dashboards", MUTED),
+    ("5", "Gold marts · 5 decision pages", MUTED),
     ("129", "automated tests", MUTED),
     ("0", "reconciliation mismatches", TEAL),
 ], h=Inches(1.15))

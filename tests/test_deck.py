@@ -104,10 +104,19 @@ def test_deck_claims_match_the_repository():
     marts = {p.stem for p in (ROOT / "src" / "pipeline").glob("*.py")}
     assert marts, "no pipeline files found"
 
-    dashboards = list((ROOT / "dashboards").glob("*.lvdash.json"))
-    assert f'"{len(dashboards)} AI/BI dashboards' in source or \
-           f"{len(dashboards)} AI/BI dashboards" in source, \
-           f"deck does not mention {len(dashboards)} dashboards"
+    # The deck must not state a dashboard count that contradicts the repository.
+    # Asserting the *correct* phrasing is brittle — "1 AI/BI dashboards" is not
+    # even grammatical — so this asserts the absence of every wrong count instead,
+    # in digits and in words.
+    actual = len(list((ROOT / "dashboards").glob("*.lvdash.json")))
+    words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
+    for n, word in words.items():
+        if n == actual:
+            continue
+        for claim in (f"{n} AI/BI dashboard", f"{word} dashboards", f"{n} dashboards"):
+            assert claim not in source, (
+                f"deck claims {claim!r} but the repository has {actual} dashboard(s)"
+            )
 
     genie = ROOT / "genie" / "f1_gold_space.json"
     if genie.exists():
