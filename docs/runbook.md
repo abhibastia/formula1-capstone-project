@@ -295,12 +295,12 @@ databricks fs rm -r dbfs:/Volumes/f1/raw/landing/<endpoint>/season=<s>/round=<r>
 | Raw payloads | `/Volumes/f1/raw/landing/<endpoint>/season=/round=/` |
 | Bronze | `f1.bronze.raw_<endpoint>` — one streaming table per endpoint |
 | Silver | `f1.silver.fact_*`, `dim_*`, `quarantine_*` |
-| Gold | `f1.gold.driver_performance`, `championship_progression`, `race_conditions`, `race_strategy`, `lap_pace` |
+| Gold | `f1.gold.driver_performance`, `championship_progression`, `race_conditions`, `race_strategy`, `lap_pace`, `constructor_standings`, plus the `driver_metrics` metric view |
 | Not ours | `f1.gold.agent_activity_analytics`, `agent_tool_calls` — a separate project's, kept for later |
 | Pipeline event log | `f1.gold.pipeline_event_log` |
 | Ingestion code | `src/ingestion/` — plain modules, unit tested |
 | Pipeline code | `src/pipeline/` — Lakeflow declarative definitions |
-| Tests | `tests/` — 129 local, no cluster or network; `tests/spark/` runs on Databricks |
+| Tests | `tests/` — 224 local, no cluster or network; `tests/spark/` runs on Databricks |
 | Access model | `scripts/apply_grants.py` — idempotent, no compute |
 | Design record | `docs/architecture.md` — why, and what is still missing |
 
