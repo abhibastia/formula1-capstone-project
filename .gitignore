@@ -30,6 +30,3 @@ landing/
 # Generated presentation output. The deck is rebuilt from
 # docs/deck/build_deck.py; the .pptx itself is a build artefact.
 build/
-
-# Scratch
-scratchpad.txt
