@@ -208,16 +208,17 @@ s, top = page("Scope", "What is built", 3)
 statgrid(s, top, [
     ("11", "Bronze streaming tables\none per endpoint", TEXT),
     ("8 + 3", "Silver facts + dimensions\ntwo dimensions SCD Type 2", TEXT),
-    ("6", "Gold marts\nclustered by season, round", TEXT),
-    ("5 + 1", "dashboard pages, one per decision\nplus a Genie agent over Gold", TEXT),
+    ("6 + 1", "Gold marts, plus a governed\nmetric view over them", TEXT),
+    ("6 + 1", "dashboard pages, one per decision\nplus a Genie agent over Gold", TEXT),
     ("65,862", "lap timings — the finest grain", BLUE),
     ("9", "quarantine views, one per fact", AMBER),
-    ("129", "automated tests", TEAL),
+    ("185", "automated tests", TEAL),
     ("0", "credentials required — both APIs keyless", TEAL),
 ])
 f = tf(s, M, Inches(5.95), BW, Inches(0.8))
 para(f, "Sources: Jolpica-F1 (results · qualifying · standings · sprint · pit stops · laps) and the "
-        "Open-Meteo ERA5 archive for measured race-day weather.", 13, MUTED, first=True, after=0)
+        "Open-Meteo ERA5 archive for measured race-day weather — two sources, "
+        "different shapes, one medallion path.", 13, MUTED, first=True, after=0)
 
 # ══════════════════════ 4 · architecture diagram ══════════════════════
 s, top = page("Architecture", "One path, checked at every boundary", 4)
@@ -268,10 +269,10 @@ node(pipe_x + PW + PG, y2, PW, Inches(1.15), "Silver",
      "facts: MV + natural-key dedupe\ndims: Auto CDC SCD Type 2", BLUE)
 arrow_r(pipe_x + 2 * PW + PG + Inches(0.02), y2 + Inches(0.46))
 node(pipe_x + 2 * (PW + PG), y2, PW, Inches(1.15), "Gold",
-     "materialised marts, dims joined\nas-of race date, clustered", BLUE)
+     "6 marts, dims joined as-of race\ndate + governed metric view", BLUE)
 arrow_r(pipe_x + 3 * PW + 2 * PG + Inches(0.02), y2 + Inches(0.46))
 node(pipe_x + 3 * (PW + PG), y2, PW, Inches(1.15), "Serving",
-     "1 AI/BI dashboard, 5 decision pages\nGenie agent — ask in English", TEAL)
+     "Dashboard: 6 decision pages\nMetric view · Genie agent", TEAL)
 
 y3 = Inches(4.78)
 sw = (BW - Inches(0.36)) / 2
@@ -305,6 +306,7 @@ tech = [
     ("Lakeflow Declarative Pipeline", "Declarative medallion, built-in expectations, lineage. Triggered, so it runs batch.", TEAL),
     ("Delta Lake", "Reliable lakehouse table format with time travel.", TEAL),
     ("Unity Catalog", "Lineage, access control, schema management, audit.", TEAL),
+    ("Unity Catalog metric views", "The semantic layer. One definition of a point, shared by the dashboard and Genie.", TEAL),
     ("AI/BI Dashboards", "Reporting over Gold — one dashboard, a page per analyst decision.", TEAL),
     ("Genie", "Natural-language analytics, scoped to the five Gold marts. 5 certified queries.", TEAL),
 ]
@@ -408,8 +410,54 @@ points(s, Inches(4.15), [
      "On a single-user workspace the owner's ownership outranks every grant, so the layering is real in configuration but cannot be experienced. Proving it needs a second identity that owns nothing."),
 ], size=13, gap=8)
 
-# ══════════════════════ 11 · automation ══════════════════════
-s, top = page("Operations", "Automated, bounded, and watched", 11)
+# ══════════════════════ 11 · semantic layer ══════════════════════
+s, top = page("Semantic layer", "One definition of a point", 11)
+lead(s, top, "A metric used to be defined once per consumer.",
+     "total_points as a mart column, pace against team in a dashboard dataset, and \"always use "
+     "total_points\" written into the Genie agent's instructions. Those agreed because one person "
+     "wrote all three — which is not a guarantee, it is a coincidence with good intentions.")
+points(s, Inches(3.35), [
+    ("f1.gold.driver_metrics — a Unity Catalog metric view",
+     "13 measures across 9 dimensions, queried through MEASURE(). Team resolves to the as-of-race "
+     "constructor, so the historical attribution survives into the semantic layer instead of being "
+     "re-derived by whoever asks next."),
+    ("The dashboard and Genie both read it",
+     "Migrated row for row: zero rows disagreeing on starts, points, qualifying, pace, pit stop or "
+     "DNF rate. The definitions moved; the numbers did not."),
+    ("Points Per Start is why the mechanism matters",
+     "A ratio that re-aggregates correctly at any grain — driver, team, season, circuit. A standard "
+     "view cannot do that, because its aggregation is fixed the moment it is created."),
+], size=14, gap=6)
+
+# ══════════════════════ 12 · the dashboard ══════════════════════
+s, top = page("The product", "Six pages, one per decision", 12)
+lead(s, top, "Organised by the question being asked, not by the table underneath.",
+     "Pages named after marts are an implementation detail leaking into the product.")
+rows = [
+    ("Standings", "Where did the season finish?", "points · wins · gap · title margin"),
+    ("Driver Form", "Who is over-performing their car?", "pace vs own team · places made up · consistency"),
+    ("Constructor Benchmarking", "Where are points won and lost?", "quali · race pace · pit stop · DNF rate"),
+    ("Circuit Priors", "What usually works here?", "typical stops · overtaking index · pole-to-win · weather"),
+    ("Championship Swing", "Which rounds decided it?", "gap to leader · points gained per round"),
+    ("Trust", "Can these numbers be believed?", "expectations passed and failed, per dataset"),
+]
+rh = Inches(0.62)
+for i, (name, question, metrics) in enumerate(rows):
+    y = Inches(3.2) + i * rh
+    if i % 2 == 0:
+        card(s, M, y, BW, rh, fill=CARD, border=BG)
+    f = tf(s, M + Inches(0.25), y + Inches(0.1), Inches(3.1), rh)
+    para(f, name, 13, TEXT, bold=True, first=True, after=0)
+    f = tf(s, M + Inches(3.5), y + Inches(0.1), Inches(4.0), rh)
+    para(f, question, 12.5, TEAL, first=True, after=0)
+    f = tf(s, M + Inches(7.7), y + Inches(0.12), BW - Inches(7.9), rh)
+    para(f, metrics, 11.5, MUTED, first=True, after=0)
+f = tf(s, M, Inches(7.0), BW, Inches(0.35))
+para(f, "Plus a Genie agent over the same Gold layer, for the questions no tile anticipated.",
+     12, MUTED, first=True, after=0)
+
+# ══════════════════════ 13 · automation ══════════════════════
+s, top = page("Operations", "Automated, bounded, and watched", 13)
 points(s, top, [
     ("f1_end_to_end  —  on demand",
      "unit tests → ingest → pipeline → validation. Tests first, so a typo costs seconds instead of a cluster start."),
@@ -421,8 +469,8 @@ points(s, top, [
      "No workspace host, profile or season is hardcoded anywhere. A fork runs ./scripts/bootstrap.sh --profile <name> and gets the same platform."),
 ], size=14.5, gap=6)
 
-# ══════════════════════ 12 · testing ══════════════════════
-s, top = page("Assurance", "Testing in three layers", 12)
+# ══════════════════════ 14 · testing ══════════════════════
+s, top = page("Assurance", "Testing in three layers", 14)
 points(s, top, [
     ("129 local tests  ·  no Spark  ·  under a second",
      "Ingestion logic — pagination against a total that counts inner records, the rate budget, the closed-round predicate, season derivation — plus repository contracts: no legacy DLT API, correct dashboard widget versions, no catalog fallback, every job bounded, every scheduled job validating."),
@@ -435,19 +483,19 @@ f = tf(s, M, Inches(6.1), BW, Inches(0.6))
 para(f, "Every contract assertion corresponds to a mistake actually made here that cost a failed update or a blank dashboard tile.",
      12.5, MUTED, first=True, after=0)
 
-# ══════════════════════ 13 · findings ══════════════════════
-s, top = page("Findings", "What the data actually says", 13)
+# ══════════════════════ 15 · findings ══════════════════════
+s, top = page("Findings", "What the data actually says", 15)
 points(s, top, [
     ("Pace and result are different questions",
      "Ranking each driver's median clean lap within a race against where they finished: 150 driver-races ended at least three places behind their own pace, 232 ahead of it. No points table shows that."),
-    ("Rain does not cause chaos",
-     "Monza 2024 measured 19.1 mm and ran dry — a daily total cannot tell rain that fell overnight from rain that fell during the race. The mart names the source of the flag so a tile can say so."),
+    ("Rain does not cause chaos — and the dashboard argues the point",
+     "Monza 2024 measured 19.1 mm and ran dry. A daily total cannot tell rain that fell overnight from rain that fell during the race, so the mart names the source of the flag rather than asserting it rained. The wet-versus-dry bars on Circuit Priors would separate if rain changed the racing. They barely do."),
     ("Going off-strategy costs about 1.2 positions on average",
      "Stints are derived from stops, because nothing publishes them: two stops means three stints. 'Two stops' alone means nothing; 'two stops when the field made three' is the story."),
 ], size=15, gap=10)
 
-# ══════════════════════ 14 · future scope ══════════════════════
-s, top = page("Next", "From dashboards to a copilot", 14)
+# ══════════════════════ 16 · future scope ══════════════════════
+s, top = page("Next", "From dashboards to a copilot", 16)
 lead(s, top, "The marts are the product. The next step is who else can reach them.",
      "Everything below reads the same Gold layer — no second copy of the data, no new pipeline.")
 cards = [
@@ -472,8 +520,8 @@ para(f, "The Genie agent already answers questions over Gold today, governed by 
         "door for people who will never open a Databricks workspace. SCD-2 already gives version history on the "
         "dimensions — 42 driver versions, queryable now.", 13, TEAL, first=True, after=0, space=1.2)
 
-# ══════════════════════ 15 · gaps ══════════════════════
-s, top = page("Candour", "What is not done", 15)
+# ══════════════════════ 17 · gaps ══════════════════════
+s, top = page("Candour", "What is not done", 17)
 points(s, top, [
     ("Amendment history on the facts  —  and why it is not one property",
      "The architecture document claimed Change Data Feed was live; it never was. The correction is sharper still: CDF is unsupported on materialised views, and every Silver fact is one. Getting it would mean converting them to streaming tables and rebuilding the dedupe. Measured, not assumed."),
@@ -488,7 +536,7 @@ f = tf(s, M, Inches(6.3), BW, Inches(0.6))
 para(f, "An unclaimed gap is worth more than a false claim. Every one of these is in the repository's own documentation.",
      12.5, MUTED, first=True, after=0)
 
-# ══════════════════════ 16 · close ══════════════════════
+# ══════════════════════ 18 · close ══════════════════════
 s = prs.slides.add_slide(BLANK)
 base(s)
 glow = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.14), H)

@@ -69,7 +69,7 @@ AI/BI Dashboard                  one page per analyst decision:
 | `scripts/` | Catalog provisioning, upload, pipeline run/poll, executable validation |
 | `tests/` | Local suite (`pytest`) and the Spark suite that runs on Databricks |
 | `genie/` | Genie agent definition — natural-language access, scoped to Gold |
-| `docs/deck/build_deck.py` | The capstone presentation, generated — `python3 docs/deck/build_deck.py` |
+| `docs/deck/build_deck.py` | The capstone presentation (18 slides), generated — `python3 docs/deck/build_deck.py` |
 | `setup_secrets.py` | Secret scope provisioning — not needed today, see above |
 | `docs/architecture.md` | Design, data dictionary (§7), and criteria coverage |
 | `docs/adr/` | Architecture Decision Records — why, and what else was on the table |

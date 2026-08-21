@@ -28,7 +28,9 @@ from pptx import Presentation  # noqa: E402 — must follow importorskip
 ROOT = Path(__file__).resolve().parents[1]
 BUILDER = ROOT / "docs" / "deck" / "build_deck.py"
 EMU_PER_INCH = 914400
-EXPECTED_SLIDES = 16
+# Pinned so a slide silently disappearing from the builder is caught. Update
+# deliberately when the deck genuinely changes length.
+EXPECTED_SLIDES = 18
 
 
 @pytest.fixture(scope="module")
