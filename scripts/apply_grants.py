@@ -81,8 +81,14 @@ def access_model(
         ("catalog", catalog, {CONSUMERS: ["USE_CATALOG"]}),
 
         # The marts are the product: the one layer a consumer reads, and the
-        # only one either dashboard needs.
+        # only one the dashboard needs.
         ("schema", f"{catalog}.gold", {CONSUMERS: ["USE_SCHEMA", "SELECT"]}),
+
+        # The metric view is the semantic layer over those marts. The schema
+        # grant already covers it; naming it explicitly is what makes the
+        # governed metric definitions visible in the access model rather than
+        # inherited by accident.
+        ("table", f"{catalog}.gold.driver_metrics", {CONSUMERS: ["SELECT"]}),
     ]
 
     if not engineers:

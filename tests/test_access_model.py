@@ -45,7 +45,10 @@ def test_consumers_read_gold_and_nothing_below_it(engineers):
     assert "SELECT" in m[("schema", "f1.gold")][CONSUMERS]
 
     for (securable, name), grants in m.items():
-        if name in ("f1", "f1.gold"):
+        # The catalog (traversal) and anything inside the Gold schema — the
+        # marts and the metric view over them — are the consumer tier by
+        # design. Everything else must be absent for them.
+        if name == "f1" or name == "f1.gold" or name.startswith("f1.gold."):
             continue
         assert CONSUMERS not in grants, (
             f"consumers were granted {grants.get(CONSUMERS)} on {securable} "
@@ -57,6 +60,16 @@ def test_consumers_read_gold_and_nothing_below_it(engineers):
 def test_consumers_cannot_read_the_landing_volume(engineers):
     volume = model(engineers).get(("volume", "f1.raw.landing"), {})
     assert CONSUMERS not in volume
+
+
+@pytest.mark.parametrize("engineers", [None, "data-engineers"])
+def test_consumers_reach_the_metric_view(engineers):
+    """The semantic layer is only useful if the consumer tier can query it."""
+    metric_view = model(engineers).get(("table", "f1.gold.driver_metrics"), {})
+    assert "SELECT" in metric_view.get(CONSUMERS, []), (
+        "consumers cannot read the metric view, so the governed definitions "
+        "are unreachable by the tier they exist for"
+    )
 
 
 def test_catalog_grant_is_traversal_not_reading():

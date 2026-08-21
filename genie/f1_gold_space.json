@@ -55,6 +55,9 @@
         "identifier": "f1.gold.constructor_standings"
       },
       {
+        "identifier": "f1.gold.driver_metrics"
+      },
+      {
         "identifier": "f1.gold.driver_performance"
       },
       {
@@ -170,6 +173,22 @@
           "JOIN final_round f ON f.season = s.season AND f.last_round = s.round\n",
           "ORDER BY s.season DESC, s.championship_position"
         ]
+      },
+      {
+        "id": "20000000000000000000000000000007",
+        "question": [
+          "Which team scored the most points per start last season?"
+        ],
+        "sql": [
+          "SELECT `Team`,\n",
+          "       MEASURE(`Points Per Start`) AS points_per_start,\n",
+          "       MEASURE(`Total Points`)     AS total_points,\n",
+          "       MEASURE(`DNF Rate`)         AS dnf_rate\n",
+          "FROM f1.gold.driver_metrics\n",
+          "WHERE `Season` = (SELECT MAX(season) FROM f1.gold.driver_performance)\n",
+          "GROUP BY ALL\n",
+          "ORDER BY points_per_start DESC"
+        ]
       }
     ],
     "text_instructions": [
@@ -179,6 +198,7 @@
           "This agent answers Formula 1 questions for reporters and fans over five Gold marts. Never query bronze, silver or raw — the marts already resolve the joins.\n",
           "\n",
           "WHICH TABLE ANSWERS WHAT\n",
+          "driver_metrics — a Unity Catalog metric view over driver_performance, and the preferred source for any points, wins, reliability or qualifying aggregate. Measures must be wrapped in MEASURE(): MEASURE(`Total Points`), MEASURE(`DNF Rate`), MEASURE(`Points Per Start`). SELECT * is not supported. Use it rather than re-deriving those aggregates from driver_performance, so the answer matches the dashboard by construction. Dimensions are Season, Round, Race, Circuit, Country, Driver, Team, Qualifying Stage and Result.\n",
           "driver_performance — one row per driver per race: grid, finish, points, reliability, qualifying. Use for 'who won', 'how many points', 'who retired', 'who gained places'.\n",
           "championship_progression — one row per driver per round: cumulative points, championship position, gap_to_leader. Use for title-race questions and anything 'after round N'.\n",
           "constructor_standings — one row per constructor per round: the team-level mirror of championship_progression, read from the published standings endpoint. Use it for 'who won the constructors' championship' and any team title question. Do not sum driver points to answer those — this table is the published figure, and the two are reconciled on every pipeline run.\n",
