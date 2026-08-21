@@ -129,6 +129,21 @@
       ]
     },
     {
+      "name": "ds_strategy",
+      "displayName": "Race strategy",
+      "queryLines": [
+        "SELECT season, round, race_name, circuit_name,\n",
+        "       driver_name,\n",
+        "       constructor_name_as_of_race AS team,\n",
+        "       stops, stints, first_stop_lap,\n",
+        "       avg_service_stop_s, fastest_stop_s,\n",
+        "       field_modal_stops, field_stop_spread, strategy_vs_field,\n",
+        "       positions_gained, finish_position, dnf_flag\n",
+        "FROM race_strategy\n",
+        "WHERE finish_position IS NOT NULL\n"
+      ]
+    },
+    {
       "name": "ds_race_conditions",
       "displayName": "Race conditions",
       "queryLines": [
@@ -1351,6 +1366,19 @@
                   ],
                   "disaggregated": false
                 }
+              },
+              {
+                "name": "q_f_team_season_1",
+                "query": {
+                  "datasetName": "ds_strategy",
+                  "fields": [
+                    {
+                      "name": "season",
+                      "expression": "`season`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
               }
             ],
             "spec": {
@@ -1362,6 +1390,11 @@
                     "fieldName": "season",
                     "displayName": "Season",
                     "queryName": "q_f_team_season_0"
+                  },
+                  {
+                    "fieldName": "season",
+                    "displayName": "Season",
+                    "queryName": "q_f_team_season_1"
                   }
                 ]
               },
@@ -1394,6 +1427,19 @@
                   ],
                   "disaggregated": false
                 }
+              },
+              {
+                "name": "q_f_team_name_1",
+                "query": {
+                  "datasetName": "ds_strategy",
+                  "fields": [
+                    {
+                      "name": "team",
+                      "expression": "`team`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
               }
             ],
             "spec": {
@@ -1405,6 +1451,11 @@
                     "fieldName": "team",
                     "displayName": "Team",
                     "queryName": "q_f_team_name_0"
+                  },
+                  {
+                    "fieldName": "team",
+                    "displayName": "Team",
+                    "queryName": "q_f_team_name_1"
                   }
                 ]
               },
@@ -1856,6 +1907,142 @@
             "width": 12,
             "height": 7
           }
+        },
+        {
+          "widget": {
+            "name": "t_team_strategy",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### The pit wall — the fourth place points are won and lost"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "b_team_pit",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_strategy",
+                  "fields": [
+                    {
+                      "name": "team",
+                      "expression": "`team`"
+                    },
+                    {
+                      "name": "avg(avg_service_stop_s)",
+                      "expression": "AVG(`avg_service_stop_s`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "avg(avg_service_stop_s)",
+                      "displayName": "Mean service stop (s)"
+                    }
+                  ]
+                },
+                "y": {
+                  "fieldName": "team",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Team"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Pit stop execution",
+                "showDescription": true,
+                "description": "Service stops only. Red-flag stoppages are excluded upstream, because a 35-minute suspension is a true duration and a meaningless average."
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "b_strategy_payoff",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_strategy",
+                  "fields": [
+                    {
+                      "name": "strategy_vs_field",
+                      "expression": "`strategy_vs_field`"
+                    },
+                    {
+                      "name": "avg(positions_gained)",
+                      "expression": "AVG(`positions_gained`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "avg(positions_gained)",
+                      "displayName": "Mean positions gained"
+                    }
+                  ]
+                },
+                "y": {
+                  "fieldName": "strategy_vs_field",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Strategy against the field"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Did going off-strategy pay?",
+                "showDescription": true,
+                "description": "Running the field's strategy gains about 0.7 places. Deviating in either direction loses them — which is the argument for knowing the circuit prior before the weekend."
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 18,
+            "width": 6,
+            "height": 6
+          }
         }
       ]
     },
@@ -2138,7 +2325,7 @@
           "position": {
             "x": 0,
             "y": 3,
-            "width": 6,
+            "width": 4,
             "height": 7
           }
         },
@@ -2196,9 +2383,69 @@
             }
           },
           "position": {
-            "x": 6,
+            "x": 4,
             "y": 3,
-            "width": 6,
+            "width": 4,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "b_circuit_spread",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_circuit",
+                  "fields": [
+                    {
+                      "name": "circuit_name",
+                      "expression": "`circuit_name`"
+                    },
+                    {
+                      "name": "avg(avg_stop_spread)",
+                      "expression": "AVG(`avg_stop_spread`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "avg(avg_stop_spread)",
+                      "displayName": "Stops: most minus fewest"
+                    }
+                  ]
+                },
+                "y": {
+                  "fieldName": "circuit_name",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Circuit"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Where teams disagreed on strategy",
+                "showDescription": true,
+                "description": "The gap between the fewest and the most stops in a race. A wide spread means the pit wall had a real choice to make; a narrow one means everybody knew the answer."
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 3,
+            "width": 4,
             "height": 7
           }
         },
