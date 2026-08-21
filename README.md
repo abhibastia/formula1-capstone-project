@@ -6,6 +6,8 @@ AI/BI dashboards. Built as a data-engineering capstone.
 
 `docs/architecture.md` is the design and decision record — why each dataset type
 was chosen, what was considered and rejected, and where the gaps still are.
+**§7 is the data dictionary**: the grain of every stored dataset, and the
+definition of every metric the project measures.
 
 ## Who it is for
 
@@ -31,7 +33,7 @@ from the Open-Meteo ERA5 archive, for every season since 2024, into a Unity
 Catalog Volume as raw JSON. A single triggered Lakeflow pipeline parses, cleans,
 deduplicates and quality-checks that data through a medallion architecture,
 maintains SCD Type 2 driver and constructor dimensions, and publishes five Gold
-marts that two dashboards read. Everything is governed by Unity Catalog; nothing
+marts that one AI/BI dashboard reads, organised by analyst decision. Everything is governed by Unity Catalog; nothing
 runs outside Databricks.
 
 ```
@@ -46,7 +48,8 @@ Silver  8 facts + 3 dims         flattened, typed, deduplicated, quarantined
       ↓
 Gold    5 marts + event log      business-ready, dimensions joined as-of race date
       ↓
-2 AI/BI Dashboards               championship & performance | pace & reliability
+AI/BI Dashboard                  one page per analyst decision:
+        + Genie agent            driver form · constructors · circuits · championship · trust
 ```
 
 ## Layout
@@ -58,8 +61,8 @@ Gold    5 marts + event log      business-ready, dimensions joined as-of race da
 | `scripts/apply_grants.py` | The Unity Catalog access model, idempotent, no compute |
 | `sql/validation_checks.sql` | Correctness checks — the bar for "done" |
 | `sql/dq_event_log.sql` | Data-quality metrics from the pipeline event log |
-| `dashboards/` | Two AI/BI dashboard definitions |
-| `databricks.yml`, `resources/` | Asset Bundle: pipeline, two jobs and two dashboards as code |
+| `dashboards/` | The AI/BI dashboard definition — five decision pages |
+| `databricks.yml`, `resources/` | Asset Bundle: pipeline, two jobs and the dashboard as code |
 | `scripts/bootstrap.sh` | Clone → running platform, in one command |
 | `scripts/` | Catalog provisioning, upload, pipeline run/poll, executable validation |
 | `tests/` | Local suite (`pytest`) and the Spark suite that runs on Databricks |
@@ -252,6 +255,22 @@ and puts the pipeline in development mode. `prod` does none of that and points a
 a **separate catalog** (`f1_prod`) — on Free Edition there is only one workspace,
 so sharing a catalog would mean a prod deploy silently overwriting dev's tables.
 `f1_prod` does not exist yet; create it in the UI before deploying that target.
+
+## Grain, in one line each
+
+| Layer | Grain |
+|---|---|
+| Landing | one JSON file per API call, per endpoint / season / round |
+| Bronze | one row per landed file |
+| Silver facts | driver × race — except **pit stops** (driver × race × stop) and **laps** (driver × race × lap, 65,862 rows) |
+| Silver dimensions | one row per version — `dim_driver` holds 42 versions across 28 drivers |
+| Gold marts | driver × race, driver × round, or race — never finer |
+
+The lap is the finest grain and the reason the project can separate *who was
+quick* from *who finished ahead*. It is aggregated to driver × race before it
+reaches a dashboard.
+
+Full grain and metric definitions: `docs/architecture.md` §7.
 
 ## Three decisions worth knowing
 

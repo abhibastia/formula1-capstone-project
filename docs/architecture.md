@@ -43,7 +43,7 @@ flowchart TB
         G["<b>Gold</b> · materialized views<br/><small>business marts · batch read<br/>clustered by season, round</small>"]
     end
 
-    D["AI/BI Dashboards<br/><small>SQL warehouse · 2 dashboards</small>"]
+    D["AI/BI Dashboard<br/><small>SQL warehouse · 5 decision pages</small>"]
     Q[("Quarantine tables<br/><small>rejected rows + reason</small>")]
     E[("Pipeline event log<br/><small>f1.gold.pipeline_event_log</small>")]
 
@@ -90,8 +90,8 @@ Silver     facts   · materialized views, deduplicated on natural key by
 Gold       materialized views
    business marts · clustered by (season, round) · metrics defined once
                            ↓
-2 AI/BI Dashboards
-   championship & performance  |  pace & reliability
+AI/BI Dashboard + Genie agent
+   one page per analyst decision, not one page per mart
 ```
 
 **Counts, as built:**
@@ -104,6 +104,7 @@ Gold       materialized views
 | Silver dimensions | 3 | `dim_driver` and `dim_constructor` SCD-2; `dim_race` an MV |
 | Silver quarantine | 9 | one per fact |
 | Gold marts | 5 | + the pipeline event log |
+| Dashboard pages | 5 | driver form · constructors · circuits · championship · trust |
 
 There is no `dim_circuit` and no separate `circuits` endpoint: circuit identity
 and coordinates arrive inside the races payload, so a fourth dimension would
@@ -369,7 +370,142 @@ the same thing by construction.
 mart columns are that layer; if the mart set grows, unified metric views over
 Gold would be the next step.
 
-## 7. Orchestration
+## 7. Grain and metrics
+
+### 7.1 What is stored, and at what grain
+
+Grain is the first question to ask of any table here, because every correctness
+check in the project is a statement about it. Row counts are from the live
+catalog; `rows = distinct keys` is asserted on every run by
+`scripts/validate_marts.py`.
+
+| Layer | Dataset | Grain | Rows | Key |
+|---|---|---|---|---|
+| Bronze | `raw_<endpoint>` × 11 | one landed file | — | `_file_path` |
+| Silver | `fact_result` | driver × race | 1,200 | season, round, driver |
+| Silver | `fact_sprint_result` | driver × sprint race | 328 | season, round, driver |
+| Silver | `fact_qualifying` | driver × race | 1,197 | season, round, driver |
+| Silver | `fact_driver_standing` | driver × round | 1,251 | season, round, driver |
+| Silver | `fact_constructor_standing` | constructor × round | 601 | season, round, constructor |
+| Silver | `fact_pit_stop` | **driver × race × stop** | 2,079 | season, round, driver, stop |
+| Silver | `fact_lap` | **driver × race × lap** | 65,862 | season, round, driver, lap |
+| Silver | `fact_race_weather` | race | 59 | season, round |
+| Silver | `dim_race` | race | 71 | season, round |
+| Silver | `dim_driver` | **driver × version** (SCD-2) | 42 over 28 drivers | driver, `__START_AT` |
+| Silver | `dim_constructor` | constructor × version (SCD-2) | 12 over 12 | constructor, `__START_AT` |
+| Gold | `driver_performance` | driver × race | 1,200 | season, round, driver |
+| Gold | `championship_progression` | driver × round | 1,251 | season, round, driver |
+| Gold | `race_strategy` | driver × race | 1,134 | season, round, driver |
+| Gold | `lap_pace` | driver × race | 1,163 | season, round, driver |
+| Gold | `race_conditions` | race | 59 | season, round |
+
+Three things this table makes explicit:
+
+**The finest grain is the lap**, at 65,862 rows — two orders of magnitude below
+everything else, and the only grain that can separate pace from result. It is
+aggregated to driver × race in `lap_pace` before it reaches a dashboard; no tile
+queries 65,000 rows.
+
+**`dim_driver` is the only dataset where rows exceed distinct keys**, and that is
+the point: 42 versions across 28 drivers, 14 of them historical. A dimension
+whose row count equals its key count has no history, which is exactly the failure
+mode building it from `/drivers` would have produced.
+
+**`dim_race` has 71 rows against 59 raced rounds.** The difference is scheduled
+2026 rounds that have not happened. Facts are keyed on races that produced
+results; the dimension knows about the rest of the calendar.
+
+`race_strategy` (1,134) and `lap_pace` (1,163) sit below `driver_performance`
+(1,200) because a driver who retired on lap 1 has no stops and no clean laps.
+That gap is expected, and check 13 in `sql/validation_checks.sql` asserts the
+reverse direction — that every raced round has lap and pit-stop coverage.
+
+### 7.2 The metrics this project exists to measure
+
+The Gold layer exposes three categories, so every number is benchmarked against
+field or circuit norms rather than sitting in isolation.
+
+**Performance — points, positions, form**
+
+| Metric | Definition | Defined in |
+|---|---|---|
+| `total_points` | `race_points + sprint_points` | `driver_performance` |
+| `positions_gained` | `grid_position − finish_position` | `driver_performance` |
+| `cumulative_points`, `championship_position` | running totals per round | `championship_progression` |
+| `gap_to_leader` | leader's cumulative points − this driver's | `championship_progression` |
+| `title_margin` | P1 points − P2 points, per season | dashboard `ds_driver_standings` |
+| constructor points | `SUM(total_points)` by **as-of-race** team | dashboard `ds_constructor_standings` |
+
+Sprint points are not optional: race points alone leave 13 of 24 drivers short of
+their official 2024 total. Constructor points are derived rather than read from a
+mart, and reconcile with the published constructor standings with **zero
+mismatches** across every team and season.
+
+**Execution — qualifying, pace, pit work, reliability**
+
+| Metric | Definition | Defined in |
+|---|---|---|
+| `quali_to_finish_delta` | `quali_position − finish_position` | `driver_performance` |
+| `pace_deficit_pct` | `100 × (median_clean_lap_s − reference_median_s) / reference_median_s` | `lap_pace` |
+| `consistency_s` | standard deviation of clean laps | `lap_pace` |
+| `pace_vs_team_pct` | driver's mean `pace_deficit_pct` − their team's mean | dashboard `ds_driver_season` |
+| `stints` | `stops + 1` — nothing publishes stints | `race_strategy` |
+| `strategy_vs_field` | driver's stops vs the field's modal stops that race | `race_strategy` |
+| `avg_service_stop_s` | mean stop duration, **service stops only** (< 120 s) | `race_strategy` |
+| `dnf_rate_pct` | share of car-races ending in retirement | dashboard, from `dnf_flag` |
+
+A *clean lap* is one within 107% of that driver's own best in that race — the
+threshold F1 uses for qualifying. It removes in-laps, out-laps and safety-car
+laps while keeping genuine racing laps, and it is per driver rather than per race
+so a backmarker is judged against their own pace.
+
+`pace_vs_team_pct` is the "over-performing the machinery" signal: negative means
+quicker than the team's own average car. It is noisy below roughly five races, so
+every surface that shows it also shows the race count.
+
+**Context — circuit, conditions, championship state**
+
+| Metric | Definition | Defined in |
+|---|---|---|
+| `overtaking_index` | mean absolute position change per driver, per race | `race_conditions` |
+| `pole_to_win_pct` | wins from `grid_position = 1` ÷ poles, per circuit | dashboard `ds_circuit` |
+| `typical_stops` | modal stop count across races at a circuit | dashboard `ds_circuit` |
+| `field_stop_spread` | most stops − fewest stops in a race | `race_strategy` |
+| `was_wet` | measured daily rainfall ≥ 1.0 mm | `race_conditions` |
+| `rainfall_verdict` | which of: flagged wet, under threshold, no observation | `race_conditions` |
+| `retirement_rate_pct` | share of classified drivers who retired | `race_conditions` |
+
+`weather_available = false` means *no observation*, never a dry race — ERA5 lags
+about five days, and rendering a missing observation as 0.0 mm would be a lie. A
+daily rainfall total also cannot separate rain that fell overnight from rain that
+fell during the race, which is why `rainfall_verdict` names the source of the
+flag rather than asserting it rained.
+
+**Data quality — metrics about the metrics**
+
+Expectation pass/fail counts per dataset per run, from the pipeline event log,
+and row counts per quarantine table. Both are queryable in SQL and surfaced on
+the dashboard's Trust page. The quarantine census is deliberately non-zero; see
+§10.
+
+### 7.3 Where the metrics are consumed
+
+The dashboard has one page per analyst decision rather than one page per mart:
+
+| Page | Decision it serves | Primary metrics |
+|---|---|---|
+| Standings | where the season finished | points, wins, gap, title margin |
+| Driver Form | who is over-performing their car | `pace_vs_team_pct`, `quali_to_finish_delta`, consistency |
+| Constructor Benchmarking | where points are won and lost | avg quali, `pace_deficit_pct`, `avg_service_stop_s`, `dnf_rate_pct` |
+| Circuit Priors | what usually works here | `typical_stops`, `overtaking_index`, `pole_to_win_pct` |
+| Championship Swing | which rounds decided it | `gap_to_leader`, `points_gained_in_round` |
+| Trust | can these numbers be believed | expectations passed/failed |
+
+A metric earns its place on a page by the question it answers, not by which mart
+it came from — which is why race pace appears under driver form and reliability
+under constructor benchmarking rather than each having a page of its own.
+
+## 8. Orchestration
 
 Lakeflow Jobs, two of them, differing only in what brackets the work.
 
@@ -403,12 +539,12 @@ Bundles, which is what stops a work-in-progress branch from writing to shared
 tables.
 
 Deployment is declarative: `databricks.yml` plus `resources/*.yml` define both
-jobs, the pipeline and both dashboards as code, with `dev` and `prod` targets
+jobs, the pipeline and the dashboard as code, with `dev` and `prod` targets
 pointing at different catalogs. Neither target pins a workspace host or a CLI
 profile — both come from the profile passed on the command line, so a fork
 deploys to its own workspace with no edit to the file.
 
-## 8. Error handling and resilience
+## 9. Error handling and resilience
 
 | Failure | Handling |
 |---|---|
@@ -425,7 +561,7 @@ deploys to its own workspace with no edit to the file.
 | A run that fails unattended | `email_notifications.on_failure` on both jobs |
 | Marts that build but do not reconcile | `validate_marts.py` as the final task; a green update is not the bar |
 
-## 9. Logging and monitoring
+## 10. Logging and monitoring
 
 - **Ingestion** emits structured `logging` output and a run summary: files
   written, partitions skipped, API requests made, and every failure by name.
@@ -445,7 +581,7 @@ count that jumps, or a reconciliation that starts failing while the job still
 reports green, would be caught by `validate_marts.py` failing the task, but a
 slow drift below that threshold is invisible.
 
-## 10. Compliance, security and governance
+## 11. Compliance, security and governance
 
 - **Data licence.** Jolpica-F1 is a public, non-commercial Ergast successor;
   Open-Meteo's archive is free for non-commercial use. Both are attributed in
@@ -486,7 +622,7 @@ slow drift below that threshold is invisible.
   row keeps `_source_url`, `_ingest_ts` and `_file_path`, so any number on the
   dashboard can be traced to the API call that produced it.
 
-## 11. Testing
+## 12. Testing
 
 Three layers, each catching what the others cannot.
 
@@ -547,7 +683,7 @@ block carries the domain rules that change answers. Both are asserted by
 instruction entry, sorted lists) so a malformed definition fails locally rather
 than on a create call.
 
-## 12. Deliberately out of scope
+## 13. Deliberately out of scope
 
 - **Streaming.** The data arrives 24 times a year.
 - **Containerisation.** Execution is serverless Databricks compute with
@@ -572,7 +708,7 @@ than on a create call.
   nothing. Before a second person is added, move them to their own schema
   first — the grant cannot be narrowed table by table.
 
-## 13. Operational constraints
+## 14. Operational constraints
 
 The environment shapes the design as much as the data does. These are the
 constraints that have actually bitten, kept from the build plan because they
@@ -587,7 +723,7 @@ outlive it.
 | Changing a dataset type in place | A Silver fact moving between materialised view and streaming table | **Cannot be done in place, and a full refresh does not help.** Drop the table manually or rename the dataset |
 | A serverless `spark_python_task` is not a normal Python process | Writing a new job task | `__file__` is undefined, custom `spark.conf` keys raise `CONFIG_NOT_AVAILABLE`, and any `SystemExit` fails the task — including `SystemExit(0)`. All three report as "Workload failed, see run output for details", which names none of them |
 
-## 14. Criteria coverage
+## 15. Criteria coverage
 
 Assessed against the technical-execution minimum criteria.
 
