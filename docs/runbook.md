@@ -9,6 +9,26 @@ to run it*. Every failure listed below has actually happened here.
 
 ## 1. Prerequisites
 
+### The two sources
+
+| Source | Endpoints | Auth | Limits |
+|---|---|---|---|
+| **Jolpica-F1** — `api.jolpi.ca/ergast/f1` | races, drivers, constructors, sprint, results, qualifying, driver & constructor standings, pitstops, laps | none | 4 req/s burst and 500/hour published; the *enforced* burst rate is lower, so the client runs at 0.5 req/s with a 450/hour budget |
+| **Open-Meteo ERA5 archive** — `archive-api.open-meteo.com` | measured daily weather at each circuit's coordinates | none | ~10,000 calls/day, far above the ~71 this project makes |
+
+Neither needs a key, which is why `setup_secrets.py` is optional. The
+coordinates come from the Jolpica races payload, so **races must be fetched
+before weather** — that is the only ordering constraint in ingestion.
+
+Weather is a different shape from everything else: Open-Meteo returns flat
+parallel arrays rather than an `MRData` envelope, so it has its own Silver file
+(`02b_silver_weather.py`) and its own schema. Bronze's `expected_source`
+expectation is per-endpoint for the same reason — a single hardcoded `jolpi.ca`
+check would fail on every weather row, and an expectation that always fails is
+one you learn to ignore.
+
+### Access
+
 ```bash
 databricks auth login --host <workspace-url> --profile <profile>
 export DATABRICKS_PROFILE=<profile>       # every script reads this
@@ -234,7 +254,9 @@ the SQL warehouse and pipeline alike.
 
 ### Weather rows are missing for recent races
 
-Working as intended. ERA5 publishes on a ~5 day lag, so `is_available` skips
+Working as intended. Weather comes from the **Open-Meteo ERA5 reanalysis
+archive**, not from a forecast and not from a race report. ERA5 publishes on a
+~5 day lag, so `is_available` skips
 races inside it rather than landing a row of nulls. `race_conditions` reports
 those as `weather_available = false` and `rainfall_verdict = 'no observation'`.
 
@@ -269,6 +291,7 @@ databricks fs rm -r dbfs:/Volumes/f1/raw/landing/<endpoint>/season=<s>/round=<r>
 
 | | |
 |---|---|
+| Sources | Jolpica-F1 (10 endpoints) and the Open-Meteo ERA5 archive (weather) — both public, both keyless |
 | Raw payloads | `/Volumes/f1/raw/landing/<endpoint>/season=/round=/` |
 | Bronze | `f1.bronze.raw_<endpoint>` — one streaming table per endpoint |
 | Silver | `f1.silver.fact_*`, `dim_*`, `quarantine_*` |
