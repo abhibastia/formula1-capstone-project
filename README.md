@@ -225,9 +225,9 @@ the previous hand-written aggregates: zero rows disagreeing.
 
 ### Natural-language access — Genie
 
-`genie/f1_gold_space.json` defines a Genie agent scoped to the five Gold marts.
-It is version-controlled because a space configured only in the UI is a space
-nobody can rebuild.
+`genie/f1_gold_space.json` defines a Genie agent scoped to the six Gold marts
+and the `driver_metrics` metric view above them. It is version-controlled
+because a space configured only in the UI is a space nobody can rebuild.
 
 ```bash
 databricks workspace mkdirs /Workspace/Users/<you>/genie_spaces --profile <name>
@@ -244,7 +244,7 @@ will join a driver to their *current* team and report a 2024 result under the
 wrong constructor — plausible, formatted, and wrong. The marts already resolve
 the as-of-race-date join. `pytest` fails if the scope is ever widened.
 
-It carries five certified SQL examples, each executed against the warehouse
+It carries seven certified SQL examples, each executed against the warehouse
 before being committed, and one instruction block encoding the rules that change
 answers: always use `total_points`, never assume a driver's current team,
 `weather_available = false` means *no observation* rather than a dry race, and
