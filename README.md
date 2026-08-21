@@ -223,9 +223,10 @@ SELECT `Team`, MEASURE(`Points Per Start`), MEASURE(`DNF Rate`)
 FROM f1.gold.driver_metrics WHERE `Season` = 2024 GROUP BY ALL
 ```
 
-It exists so the dashboard, the Genie agent and an ad-hoc query resolve
-`Total Points` to the same expression by construction rather than by everyone
-remembering. Verified in parity with the mart: zero drivers disagreeing.
+The dashboard's Driver Form and Constructor Benchmarking pages read it, as does
+the Genie agent — so all three resolve `Total Points` to the same expression by
+construction rather than by everyone remembering. Verified row for row against
+the previous hand-written aggregates: zero rows disagreeing.
 
 ### Natural-language access — Genie
 

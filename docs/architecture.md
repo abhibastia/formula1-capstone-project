@@ -435,11 +435,23 @@ Verified in parity with the mart it sits on — zero drivers disagreeing on
 `Total Points` for 2024 — and granted to the consumer tier by
 `scripts/apply_grants.py` rather than by hand.
 
-**Remaining gap:** the dashboard datasets still compute their own aggregates
-rather than reading the metric view. `pace_vs_team_pct` in particular has no
-metric-view equivalent because it needs a per-team window before the driver-level
-aggregate. Migrating the dashboard onto measures is the next step, not a
-finished one.
+**The dashboard reads it.** `ds_driver_season` and `ds_team_season` — the
+datasets behind the Driver Form and Constructor Benchmarking pages — resolve
+every metric through `MEASURE()` rather than re-aggregating the marts. Verified
+row for row against the previous definitions: zero rows disagreeing on starts,
+points, qualifying, pace, pit stop or DNF rate. The migration changed where the
+definitions live, not what the dashboard shows.
+
+The view carries pace and pit work through declarative joins to `lap_pace` and
+`race_strategy` — both one row per driver per race, the same grain as the source,
+so the join cannot fan out. Without them half the metrics would be governed and
+half re-derived per tile, which is the problem the layer exists to solve.
+
+`pace_vs_team_pct` is the one metric that stays in dataset SQL: it needs a
+per-team aggregate subtracted from a per-driver one, which a measure cannot
+express. It is still computed *from* the view at both grains — team pace comes
+from `MEASURE(Pace Deficit)` at team level rather than by averaging driver
+averages, which would silently reweight it by driver count.
 
 ## 7. Grain and metrics
 
