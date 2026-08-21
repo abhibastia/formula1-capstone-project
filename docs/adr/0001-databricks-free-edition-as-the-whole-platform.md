@@ -1,8 +1,5 @@
 # 1. Databricks Free Edition as the entire platform
 
-Date: 2026-08-06
-Status: Accepted
-
 ## Context
 
 The project needed ingestion, storage, transformation, orchestration, governance

@@ -1,8 +1,5 @@
 # 2. Batch, single path — not Lambda or Kappa
 
-Date: 2026-08-06
-Status: Accepted
-
 ## Context
 
 The pipeline architecture pattern had to be chosen explicitly. Formula 1 produces

@@ -1,8 +1,5 @@
 # 7. The bundle owns the pipeline and jobs, not the catalog
 
-Date: 2026-08-06
-Status: Accepted
-
 ## Context
 
 Databricks Asset Bundles can declare catalogs, schemas and volumes as resources,

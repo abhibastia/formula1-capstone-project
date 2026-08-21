@@ -1,8 +1,5 @@
 # 8. Change Data Feed is not enabled
 
-Date: 2026-08-21
-Status: Accepted
-
 ## Context
 
 Because results are provisional, the most distinctive question this dataset could

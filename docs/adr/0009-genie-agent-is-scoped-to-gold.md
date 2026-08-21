@@ -1,8 +1,5 @@
 # 9. The Genie agent is scoped to Gold only
 
-Date: 2026-08-14
-Status: Accepted
-
 ## Context
 
 Genie translates a natural-language question into SQL and runs it. Given access

@@ -1,8 +1,5 @@
 # 6. Gold is wide marts with dimensions joined as-of race date
 
-Date: 2026-08-07
-Status: Accepted
-
 ## Context
 
 Silver holds a conformed star: `dim_driver`, `dim_constructor` and `dim_race`
