@@ -14,10 +14,11 @@ formatted, and wrong.
 
 ## Decision
 
-The agent's `data_sources` list contains exactly the six Gold marts. Not Silver,
-not Bronze, not the landing Volume. It carries six certified SQL examples — each
-executed against the warehouse before being committed — and one instruction block
-encoding the rules that change answers.
+The agent's `data_sources` list contains exactly the six Gold marts plus the
+`driver_metrics` metric view over them. Not Silver, not Bronze, not the landing
+Volume. It carries seven certified SQL examples — each executed against the
+warehouse before being committed — and one instruction block encoding the rules
+that change answers.
 
 ## Consequences
 

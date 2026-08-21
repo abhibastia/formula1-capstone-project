@@ -3,7 +3,7 @@
 ## Context
 
 Silver holds a conformed star: `dim_driver`, `dim_constructor` and `dim_race`
-around six facts. The serving layer had to choose a paradigm — expose the star
+around eight facts. The serving layer had to choose a paradigm — expose the star
 directly, or denormalise.
 
 The access pattern is a dashboard tile asking "points by constructor for season
@@ -40,9 +40,10 @@ joins are already resolved.
 and ~1,200 results that costs nothing; at a hundred times the size it would need
 revisiting.
 
-**Bad.** There is still no metric-view layer — the mart columns *are* the
-semantic layer. That is adequate at this scale and named as a gap in
-`architecture.md`.
+**Bad, since resolved.** At the time of this decision there was no metric-view
+layer — the mart columns were the whole semantic layer. `driver_metrics`, a
+Unity Catalog metric view over `driver_performance`, was added afterwards; see
+`architecture.md` §6.
 
 ## Alternatives considered
 
