@@ -279,7 +279,7 @@ dp.create_auto_cdc_flow(
 field `/drivers` returns is static, so Auto CDC over it yields a dimension with
 no history at all — the pattern implemented but never exercised. The attribute
 that changes is the constructor, and it only appears in results. This produces
-42 versions across 28 drivers, 14 of them historical.
+44 versions across 28 drivers, 16 of them historical.
 
 **Expectations and quarantine.** Rules are declared once as dicts and used
 twice — `@expect_all_or_drop` on the fact, and the inverse on a `quarantine_*`
@@ -287,7 +287,7 @@ table that also records which rules a row violated. A rejected row is visible,
 not silently gone. `@expect_or_fail` is reserved for conditions that should stop
 the pipeline rather than quietly discard data.
 
-The census is not expected to be empty, and that is the point: 69 lap rows fail
+The census is not expected to be empty, and that is the point: 89 lap rows fail
 `plausible_lap_time` (red-flag and safety-car laps outside 40–300 s), 8
 standings rows arrive with no championship position, and 2 pit stops are
 published with an empty duration. Zero everywhere would mean the expectations
@@ -319,9 +319,12 @@ Not disabled — unsupported. No property changes it.
 | Materialised view | 8 Silver facts, 6 Gold marts | Unsupported. Cannot be enabled. |
 | Streaming table | 11 Bronze tables, `dim_driver`, `dim_constructor` | **Already enabled** — `delta.enableChangeDataFeed = true`, set by Lakeflow, not by us |
 
-`table_changes('f1.silver.dim_driver', 2)` returns 42 insert rows today. Reading
-from version 0 fails on `deletedFileRetentionDuration` (168 hours), which is a
-retention limit rather than a CDF one.
+`table_changes('f1.silver.dim_driver', N)` returns real change rows for any
+recent version `N` — 46 as of the version the 2026-08-24 pipeline run just
+wrote. Reading from a version more than `deletedFileRetentionDuration` (168
+hours) old fails outright, which is a retention limit rather than a CDF one —
+and it is why this doc names the *behaviour* rather than a specific version
+number: any number quoted here expires within a week on its own.
 
 **Why CDF is not needed for the pipeline.** LDP is already incremental: streaming
 tables process only new data, and materialised views on serverless refresh
@@ -341,7 +344,7 @@ deduplication as an Auto CDC flow — a real architectural change with a real
 trade-off, not a checkbox. It is not worth making to satisfy a criterion.
 
 **What change tracking does exist.** SCD Type 2 on the dimensions, which is not a
-consolation prize: `dim_driver` holds 42 versions across 28 drivers with
+consolation prize: `dim_driver` holds 44 versions across 28 drivers with
 `__START_AT` / `__END_AT`, queryable today, and it is what lets Gold attribute a
 result to the team a driver actually drove for that weekend. Amendment history
 for *facts* is the gap; version history for *dimensions* is built and used.
@@ -491,10 +494,10 @@ catalog; `rows = distinct keys` is asserted on every run by
 | Silver | `fact_driver_standing` | driver × round | 1,251 | season, round, driver |
 | Silver | `fact_constructor_standing` | constructor × round | 601 | season, round, constructor |
 | Silver | `fact_pit_stop` | **driver × race × stop** | 2,079 | season, round, driver, stop |
-| Silver | `fact_lap` | **driver × race × lap** | 65,862 | season, round, driver, lap |
+| Silver | `fact_lap` | **driver × race × lap** | 67,208 | season, round, driver, lap |
 | Silver | `fact_race_weather` | race | 59 | season, round |
 | Silver | `dim_race` | race | 71 | season, round |
-| Silver | `dim_driver` | **driver × version** (SCD-2) | 42 over 28 drivers | driver, `__START_AT` |
+| Silver | `dim_driver` | **driver × version** (SCD-2) | 44 over 28 drivers | driver, `__START_AT` |
 | Silver | `dim_constructor` | constructor × version (SCD-2) | 12 over 12 | constructor, `__START_AT` |
 | Gold | `driver_performance` | driver × race | 1,200 | season, round, driver |
 | Gold | `championship_progression` | driver × round | 1,251 | season, round, driver |
@@ -505,13 +508,13 @@ catalog; `rows = distinct keys` is asserted on every run by
 
 Three things this table makes explicit:
 
-**The finest grain is the lap**, at 65,862 rows — two orders of magnitude below
+**The finest grain is the lap**, at 67,208 rows — two orders of magnitude below
 everything else, and the only grain that can separate pace from result. It is
 aggregated to driver × race in `lap_pace` before it reaches a dashboard; no tile
 queries 65,000 rows.
 
 **`dim_driver` is the only dataset where rows exceed distinct keys**, and that is
-the point: 42 versions across 28 drivers, 14 of them historical. A dimension
+the point: 44 versions across 28 drivers, 16 of them historical. A dimension
 whose row count equals its key count has no history, which is exactly the failure
 mode building it from `/drivers` would have produced.
 

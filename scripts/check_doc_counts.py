@@ -193,6 +193,12 @@ def main() -> int:
         ("README.md",
          r"laps\*{0,2} \(driver × race × lap, ([\d,]+) rows\)",
          clean_laps, "grain table: clean lap-timing rows"),
+        ("docs/architecture.md",
+         r"fact_lap.{0,60}\| ([\d,]+) \|",
+         clean_laps, "§7.1 grain table: fact_lap row count"),
+        ("docs/architecture.md",
+         r"finest grain is the lap\*\*, at ([\d,]+) rows",
+         clean_laps, "§7.1 prose: finest-grain lap count"),
         ("docs/deck/build_deck.py",
          r'"(\d+) rounds"',
          total_rounds, "title-slide chip: round count"),
@@ -266,7 +272,9 @@ def main() -> int:
     print("\nNot checked here — need Spark/warehouse, spot-check by hand:")
     print("  README.md / deck        \"150 driver-races ... 232 ahead\" (pace vs. finish, driver_performance + lap_pace)")
     print("  deck                    \"0.69 places ... 0.40\" (strategy finding, race_strategy)")
-    print("  README.md / CLAUDE.md   \"42 versions across 28 drivers, 14 historical\" (dim_driver SCD-2 history)")
+    print("  README.md / CLAUDE.md   dim_driver SCD-2 history (versions / drivers / historical rows) —")
+    print("                          query: SELECT COUNT(*), COUNT(DISTINCT driver_id),")
+    print("                          SUM(CASE WHEN __END_AT IS NOT NULL THEN 1 ELSE 0 END) FROM f1.silver.dim_driver")
 
     return 1 if fail else 0
 
