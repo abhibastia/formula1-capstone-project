@@ -18,6 +18,10 @@ pyyaml>=6.0
 # tests skip themselves if this is absent.
 python-pptx>=1.0
 
+# docs/deck/build_qrcodes.py — generates the GitHub/LinkedIn QR codes on the
+# closing slide. Only needed to regenerate those two PNGs.
+qrcode>=8.0
+
 # setup_secrets.py only. Skip it if you are not provisioning a secret scope —
 # which is most people, since every data source here is keyless.
 databricks-sdk>=0.30

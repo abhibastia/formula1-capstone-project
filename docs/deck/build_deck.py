@@ -235,6 +235,7 @@ para(f, "Race Intelligence & Strategy Platform", 44, MUTED, bold=True, after=20)
 para(f, "A governed batch lakehouse on Databricks Free Edition.\n"
         "Public APIs → Unity Catalog Volume → Lakeflow Declarative Pipeline → AI/BI.",
      15, MUTED, after=0, space=1.3)
+para(f, "Abhisek Bastia  ·  August 24, 2026", 13, TEXT, bold=True, before=22, after=0)
 chips = ["3 seasons", "60 rounds", "6 Gold marts", "224 tests", "0 reconciliation mismatches"]
 x = Inches(1.15)
 for i, c in enumerate(chips):
@@ -260,24 +261,7 @@ para(f, "So it is sized for trust, not scale.", 17, TEAL, bold=True, first=True,
 para(f, "~1,200 race results is nothing to a lakehouse. The work is making every number traceable to a raw "
         "API payload — and a wrong number findable rather than merely absent.", 13, MUTED, after=0, space=1.2)
 
-# ══════════════════════ 3 · what is built ══════════════════════
-s, top = page("Scope", "What is built")
-statgrid(s, top, [
-    ("11", "Bronze streaming tables\none per endpoint", TEXT),
-    ("8 + 3", "Silver facts + dimensions\ntwo dimensions SCD Type 2", TEXT),
-    ("6 + 1", "Gold marts, plus a governed\nmetric view over them", TEXT),
-    ("6 + 1", "dashboard pages, one per decision\nplus a Genie agent over Gold", TEXT),
-    ("67,208", "lap timings — the finest grain", BLUE),
-    ("9", "quarantine views, one per fact", AMBER),
-    ("185", "automated tests", TEAL),
-    ("0", "credentials required — both APIs keyless", TEAL),
-])
-f = tf(s, M, Inches(5.95), BW, Inches(0.8))
-para(f, "Sources: Jolpica-F1 (results · qualifying · standings · sprint · pit stops · laps) and the "
-        "Open-Meteo ERA5 archive for measured race-day weather — two sources, "
-        "different shapes, one medallion path.", 13, MUTED, first=True, after=0)
-
-# ══════════════════════ 4 · architecture diagram ══════════════════════
+# ══════════════════════ 3 · architecture diagram ══════════════════════
 s, top = page("Architecture", "One path, checked at every boundary")
 
 def node(l, t, w, h, title, sub, accent=None, fill=CARD):
@@ -287,8 +271,8 @@ def node(l, t, w, h, title, sub, accent=None, fill=CARD):
         strip.fill.solid(); strip.fill.fore_color.rgb = accent
         strip.line.fill.background(); strip.shadow.inherit = False
     f = tf(s, l + Inches(0.22), t + Inches(0.16), w - Inches(0.36), h - Inches(0.3))
-    para(f, title, 13.5, TEXT, bold=True, first=True, after=3)
-    para(f, sub, 10.5, MUTED, after=0, space=1.12)
+    para(f, title, 15, TEXT, bold=True, first=True, after=3)
+    para(f, sub, 12, MUTED, after=0, space=1.12)
     return c
 
 def arrow_r(l, t, w=Inches(0.34), h=Inches(0.22)):
@@ -307,18 +291,34 @@ y1 = Inches(2.0)
 node(M, y1, NW, NH, "Sources",
      "Jolpica-F1 REST  ·  Open-Meteo ERA5\npublic, keyless", RED)
 arrow_r(M + NW + Inches(0.08), y1 + Inches(0.37))
-node(M + NW + GAP, y1, NW, NH, "Ingestion  ·  Databricks Job",
+node(M + NW + GAP, y1, NW, NH, "Ingestion  ·  Lakeflow Job",
      "serverless Python, throttled, retried,\nidempotent partition writes", RED)
 arrow_r(M + 2 * NW + GAP + Inches(0.08), y1 + Inches(0.37))
 node(M + 2 * (NW + GAP), y1, NW, NH, "Landing  ·  UC Volume",
      "f1.raw.landing — raw JSON per call,\nprovenance envelope", RED)
 
-arrow_d(M + 2 * (NW + GAP) + NW / 2, y1 + NH + Inches(0.06))
-
 y2 = Inches(3.42)
 PW = Inches(2.62)
 PG = Inches(0.36)
 pipe_x = M
+
+# Landing sits at the far right of row 1; Bronze starts at the far left of
+# row 2. A straight drop between them lands over Serving, not Bronze — this
+# elbow actually connects the two boxes it is meant to.
+def connector(x1, y1_, x2, y2_):
+    seg = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, min(x1, x2), min(y1_, y2_),
+                              max(abs(x2 - x1), Inches(0.03)), max(abs(y2_ - y1_), Inches(0.03)))
+    seg.fill.solid(); seg.fill.fore_color.rgb = LINE
+    seg.line.fill.background(); seg.shadow.inherit = False
+
+landing_cx = M + 2 * (NW + GAP) + NW / 2
+landing_bottom = y1 + NH
+bronze_cx = pipe_x + PW / 2
+track_y = landing_bottom + Inches(0.2)
+connector(landing_cx, landing_bottom, landing_cx, track_y)      # drop from Landing
+connector(bronze_cx, track_y, landing_cx, track_y)               # jog left to above Bronze
+arrow_d(bronze_cx - Inches(0.11), track_y)                       # arrow into Bronze
+
 node(pipe_x, y2, PW, Inches(1.15), "Bronze",
      "Auto Loader streaming tables\nread as text · nothing dropped", BLUE)
 arrow_r(pipe_x + PW + Inches(0.02), y2 + Inches(0.46))
@@ -335,10 +335,10 @@ y3 = Inches(4.78)
 sw = (BW - Inches(0.36)) / 2
 side = card(s, M, y3, sw, Inches(0.62), fill=CARD2)
 f = tf(s, M + Inches(0.2), y3 + Inches(0.16), sw - Inches(0.4), Inches(0.4))
-para(f, "Rejected rows → 9 quarantine tables, with the rule they violated", 11.5, AMBER, first=True, after=0)
+para(f, "Rejected rows → 9 quarantine tables, with the rule they violated", 13, AMBER, first=True, after=0)
 side2 = card(s, M + sw + Inches(0.36), y3, sw, Inches(0.62), fill=CARD2)
 f = tf(s, M + sw + Inches(0.56), y3 + Inches(0.16), sw - Inches(0.4), Inches(0.4))
-para(f, "Pipeline event log → f1.gold.pipeline_event_log, queryable in SQL", 11.5, AMBER, first=True, after=0)
+para(f, "Pipeline event log → f1.gold.pipeline_event_log, queryable in SQL", 13, AMBER, first=True, after=0)
 
 y4 = Inches(5.62)
 gov = card(s, M, y4, BW, Inches(0.62), fill=CARD)
@@ -347,52 +347,59 @@ strip.fill.solid(); strip.fill.fore_color.rgb = TEAL
 strip.line.fill.background(); strip.shadow.inherit = False
 f = tf(s, M + Inches(0.24), y4 + Inches(0.16), BW - Inches(0.5), Inches(0.4))
 para(f, "Unity Catalog  —  governs all of it: lineage from the pipeline graph, layered grants, audit, "
-        "row-level provenance on every Bronze row", 12, TEXT, first=True, after=0)
+        "row-level provenance on every Bronze row", 13, TEXT, first=True, after=0)
 f = tf(s, M, Inches(6.45), BW, Inches(0.5))
 para(f, "Batch, single path — not Lambda, not Kappa. F1 produces data 24 times a year, in bursts, hours after each race.",
-     12, MUTED, first=True, after=0)
+     13, MUTED, first=True, after=0)
+# ══════════════════════ 4 · what is built ══════════════════════
+s, top = page("Scope", "What is built")
+statgrid(s, top, [
+    ("11", "Bronze streaming tables\none per endpoint", TEXT),
+    ("8 + 3", "Silver facts + dimensions\ntwo dimensions SCD Type 2", TEXT),
+    ("6 + 1", "Gold marts, plus a governed\nmetric view over them", TEXT),
+    ("6 + 1", "dashboard pages, one per decision\nplus a Genie agent over Gold", TEXT),
+    ("67,208", "lap timings — the finest grain", BLUE),
+    ("9", "quarantine views, one per fact", AMBER),
+    ("224", "automated tests", TEAL),
+    ("0", "credentials required — both APIs keyless", TEAL),
+])
+f = tf(s, M, Inches(5.95), BW, Inches(0.8))
+para(f, "Sources: Jolpica-F1 (results · qualifying · standings · sprint · pit stops · laps) and the "
+        "Open-Meteo ERA5 archive for measured race-day weather — two sources, "
+        "different shapes, one medallion path.", 13, MUTED, first=True, after=0)
 
-# ══════════════════════ 5 · the detailed diagram ══════════════════════
-# Full bleed and no slide chrome: the picture carries its own title, and every
-# inch given to a heading is an inch taken off text that is already small.
-# Generated by docs/deck/build_architecture.py — run that first.
-s = prs.slides.add_slide(BLANK)
-base(s)
-_arch = Path(__file__).resolve().parents[1] / "assets" / "architecture.png"
-assert _arch.exists(), (
-    f"missing {_arch} — run: python3 docs/deck/build_architecture.py"
-)
-_img_w = W
-_img_h = int(W / 2.069)          # the diagram's aspect
-s.shapes.add_picture(str(_arch), 0, int((H - _img_h) / 2), width=int(_img_w), height=_img_h)
 
 # ══════════════════════ 6 · technology choices ══════════════════════
 s, top = page("Stack", "Technology choices, and why")
 tech = [
-    ("Databricks Free Edition", "Free, serverless, a real Lakehouse. The goal of the project is Databricks depth.", TEAL),
+    ("Databricks Free Edition", "Free, serverless, a real Lakehouse.", TEAL),
     ("Python & SQL", "API ingestion in Python; transformations and marts in SQL.", TEAL),
-    ("Unity Catalog Volume", "Managed, governed file landing zone — no external location needed. The Free-Edition-correct choice.", TEAL),
-    ("Databricks Job (scheduled)", "Serverless ingestion. Replaces AWS Lambda + EventBridge: one platform, no cloud account.", TEAL),
+    ("Unity Catalog Volume", "Managed, governed file landing zone — no external location needed.", TEAL),
+    ("Databricks Asset Bundles (DAB)", "Pipeline, jobs and dashboard deployed as code — one bundle, dev/prod targets, no manual clicking.", TEAL),
+    ("Lakeflow Job (scheduled)", "Serverless ingestion. Replaces AWS Lambda + EventBridge: one platform, no cloud account.", TEAL),
     ("Auto Loader", "Incremental file processing and checkpointing without an always-on stream.", TEAL),
     ("Lakeflow Declarative Pipeline", "Declarative medallion, built-in expectations, lineage. Triggered, so it runs batch.", TEAL),
+    ("Apache Spark (PySpark)", "The engine underneath Lakeflow — window functions dedupe Silver, DataFrame/SQL builds Gold.", TEAL),
     ("Delta Lake", "Reliable lakehouse table format with time travel.", TEAL),
     ("Unity Catalog", "Lineage, access control, schema management, audit.", TEAL),
     ("Unity Catalog metric views", "The semantic layer. One definition of a point, shared by the dashboard and Genie.", TEAL),
     ("AI/BI Dashboards", "Reporting over Gold — one dashboard, a page per analyst decision.", TEAL),
-    ("Genie", "Natural-language analytics, scoped to the six Gold marts and the metric view above them. 7 certified queries.", TEAL),
+    ("Genie", "Natural-language analytics over the six Gold marts and the metric view. 7 certified queries.", TEAL),
 ]
-row_h = Inches(0.44)
+row_h = Inches(0.36)
 y = top - Inches(0.05)
 for i, (name, why, mark) in enumerate(tech):
     if i % 2 == 0:
         bg = card(s, M, y, BW, row_h, fill=CARD, border=BG)
-    dot(s, M + Inches(0.2), y + Inches(0.16), mark, Inches(0.1))
-    f = tf(s, M + Inches(0.45), y + Inches(0.1), Inches(3.5), row_h)
-    para(f, name, 12.5, TEXT, bold=True, first=True, after=0)
-    f = tf(s, M + Inches(4.1), y + Inches(0.1), BW - Inches(4.3), row_h)
-    para(f, why, 12, MUTED, first=True, after=0)
+    dot(s, M + Inches(0.2), y + row_h / 2 - Inches(0.05), mark, Inches(0.1))
+    f = tf(s, M + Inches(0.45), y, Inches(3.5), row_h)
+    f.vertical_anchor = MSO_ANCHOR.MIDDLE
+    para(f, name, 12, TEXT, bold=True, first=True, after=0)
+    f = tf(s, M + Inches(4.1), y, BW - Inches(4.3), row_h)
+    f.vertical_anchor = MSO_ANCHOR.MIDDLE
+    para(f, why, 11, MUTED, first=True, after=0)
     y += row_h
-f = tf(s, M, Inches(6.65), BW, Inches(0.4))
+f = tf(s, M, y + Inches(0.12), BW, Inches(0.4))
 para(f, "Every row is built and running. Ingestion is Python; everything downstream is declarative.",
      11, MUTED, first=True, after=0)
 
@@ -447,39 +454,13 @@ lead(s, top, "A green pipeline update is not the bar. Reconciliation is.",
 statgrid(s, Inches(3.65), [
     ("0", "reconciliation mismatches\nevery driver, every season", TEAL),
     ("11 / 11", "validation checks passing\nlast task of both jobs", TEAL),
-    ("14", "SCD-2 history rows\nthe dimension is truly versioned", TEAL),
+    ("16", "SCD-2 history rows\nthe dimension is truly versioned", TEAL),
     ("0", "duplicate natural keys\nanywhere in Silver", TEAL),
 ])
 f = tf(s, M, Inches(5.4), BW, Inches(1.0))
 para(f, "Lap timings reconcile against results with two exemptions, both real semantics rather than tolerance for error: "
         "disqualification zeroes the results lap count while the laps driven were still timed, and a lapped runner is "
         "classified on the lap the leader finished.", 13, MUTED, first=True, after=0, space=1.2)
-
-# ══════════════════════ 10 · governance ══════════════════════
-s, top = page("Governance", "Access narrows as the data gets rawer")
-rows = [("Principal", "Catalog", "Gold", "Silver / Bronze", "Landing Volume"),
-        ("account users", "USE_CATALOG", "SELECT", "—", "—"),
-        ("engineer tier", "USE_CATALOG", "SELECT", "SELECT", "READ_VOLUME"),
-        ("owner", "everything by ownership", "", "", "")]
-rh = Inches(0.5)
-for r, row in enumerate(rows):
-    y = top + r * rh
-    if r == 0:
-        card(s, M, y, BW, rh, fill=CARD2, border=BG)
-    elif r % 2 == 1:
-        card(s, M, y, BW, rh, fill=CARD, border=BG)
-    xs = [M + Inches(0.25), M + Inches(2.95), M + Inches(5.15), M + Inches(6.95), M + Inches(9.25)]
-    widths = [Inches(2.6), Inches(2.1), Inches(1.7), Inches(2.2), Inches(2.2)]
-    for c, val in enumerate(row):
-        f = tf(s, xs[c], y + Inches(0.14), widths[c], Inches(0.35))
-        col = TEXT if r == 0 else (TEAL if val == "SELECT" and c == 2 else MUTED)
-        para(f, val, 12, col, bold=(r == 0), first=True, after=0)
-points(s, Inches(4.15), [
-    "An analyst can query f1.gold.driver_performance and cannot read the Bronze payload behind it. Applied by an idempotent script through the permissions API — no compute, works with the daily quota exhausted.",
-    "Nobody is granted WRITE_VOLUME. The landing zone has exactly one writer, the ingestion job; a second breaks the idempotency contract the deduplication depends on.",
-    ("Honest limit",
-     "On a single-user workspace the owner's ownership outranks every grant, so the layering is real in configuration but cannot be experienced. Proving it needs a second identity that owns nothing."),
-], size=13, gap=8)
 
 # ══════════════════════ 11 · semantic layer ══════════════════════
 s, top = page("Semantic layer", "One definition of a point")
@@ -554,17 +535,6 @@ f = tf(s, M, Inches(6.1), BW, Inches(0.6))
 para(f, "Every contract assertion corresponds to a mistake actually made here that cost a failed update or a blank dashboard tile.",
      12.5, MUTED, first=True, after=0)
 
-# ══════════════════════ 15 · findings ══════════════════════
-s, top = page("Findings", "What the data actually says")
-points(s, top, [
-    ("Pace and result are different questions",
-     "Ranking each driver's median clean lap within a race against where they finished: 150 driver-races ended at least three places behind their own pace, 232 ahead of it. No points table shows that."),
-    ("Rain does not cause chaos — and the dashboard argues the point",
-     "Monza 2024 measured 19.1 mm and ran dry. A daily total cannot tell rain that fell overnight from rain that fell during the race, so the mart names the source of the flag rather than asserting it rained. The wet-versus-dry bars on Circuit Priors would separate if rain changed the racing. They barely do."),
-    ("Running the field's strategy is worth about 1.1 positions",
-     "Stay with the field and you gain 0.69 places on average; deviate in either direction and you lose 0.40. Stints are derived from stops, because nothing publishes them — and 'two stops' means nothing until you know the field made three."),
-], size=15, gap=10)
-
 # ══════════════════════ 16 · future scope ══════════════════════
 s, top = page("Next", "From dashboards to a copilot")
 lead(s, top, "The marts are the product. The next step is who else can reach them.",
@@ -606,6 +576,26 @@ para(f, "and whose gaps you can read.", 34, MUTED, bold=True, after=18)
 para(f, "Ingestion is idempotent, Silver deduplicates on natural keys, dimensions carry history, Gold joins them "
         "as of the race date, and eleven validation checks say so on every run — including the weekly one nobody watches.",
      14, MUTED, after=0, space=1.3)
+
+# ── QR codes: generated by build_qrcodes.py, same reason the diagram is code —
+# a changed profile or repo path is a one-line edit and a rerun, not a re-scan.
+_QR_Y, _QR_H, _QR_GAP = Inches(4.85), Inches(0.62), Inches(0.24)
+_QR_W = (Inches(10.8) - _QR_GAP) / 2
+for i, (img_name, label, url) in enumerate([
+    ("qr_github.png", "GitHub", "github.com/abhibastia/formula1-capstone-project"),
+    ("qr_linkedin.png", "LinkedIn", "linkedin.com/in/abhisek-bastia"),
+]):
+    qx = Inches(1.15) + i * (_QR_W + _QR_GAP)
+    card(s, qx, _QR_Y, _QR_W, _QR_H, fill=CARD2)
+    qr_path = Path(__file__).resolve().parents[1] / "assets" / img_name
+    if qr_path.exists():
+        s.shapes.add_picture(str(qr_path), qx + Inches(0.12), _QR_Y + Inches(0.08),
+                              width=Inches(0.46), height=Inches(0.46))
+    f = tf(s, qx + Inches(0.72), _QR_Y, _QR_W - Inches(0.86), _QR_H)
+    f.vertical_anchor = MSO_ANCHOR.MIDDLE
+    para(f, label, 13, TEXT, bold=True, first=True, after=1)
+    para(f, url, 10, MUTED, after=0)
+
 statgrid(s, Inches(5.6), [
     ("3", "seasons · 60 rounds", MUTED),
     ("6", "Gold marts · 6 decision pages", MUTED),
