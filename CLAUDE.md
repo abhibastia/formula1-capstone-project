@@ -23,7 +23,7 @@ rediscover.
 1. **`dim_driver` is built from the results endpoint, not `/drivers`.** Every
    field `/drivers` returns is static, so Auto CDC over it yields zero history
    rows. The attribute that changes is the driver's constructor, and it only
-   exists in results. Verified: this produces 42 versions over 28 drivers, 14 of
+   exists in results. Verified: this produces 44 versions over 28 drivers, 16 of
    them historical. Do not "simplify" this back to the drivers endpoint.
 
 2. **Sprint points are part of the championship.** Summing only race points

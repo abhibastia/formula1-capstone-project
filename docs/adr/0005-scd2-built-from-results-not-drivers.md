@@ -18,7 +18,7 @@ results.
 
 ## Consequences
 
-**Good.** The dimension has real history: 42 versions across 28 drivers, 14 of
+**Good.** The dimension has real history: 44 versions across 28 drivers, 16 of
 them historical. Mid-season team changes are preserved, which is what makes the
 as-of-race join in Gold meaningful (ADR 0006).
 

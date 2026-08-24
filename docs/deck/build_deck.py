@@ -235,7 +235,7 @@ para(f, "Race Intelligence & Strategy Platform", 44, MUTED, bold=True, after=20)
 para(f, "A governed batch lakehouse on Databricks Free Edition.\n"
         "Public APIs → Unity Catalog Volume → Lakeflow Declarative Pipeline → AI/BI.",
      15, MUTED, after=0, space=1.3)
-chips = ["3 seasons", "59 rounds", "6 Gold marts", "224 tests", "0 reconciliation mismatches"]
+chips = ["3 seasons", "60 rounds", "6 Gold marts", "224 tests", "0 reconciliation mismatches"]
 x = Inches(1.15)
 for i, c in enumerate(chips):
     w = Inches(0.55 + 0.105 * len(c))
@@ -267,7 +267,7 @@ statgrid(s, top, [
     ("8 + 3", "Silver facts + dimensions\ntwo dimensions SCD Type 2", TEXT),
     ("6 + 1", "Gold marts, plus a governed\nmetric view over them", TEXT),
     ("6 + 1", "dashboard pages, one per decision\nplus a Genie agent over Gold", TEXT),
-    ("65,862", "lap timings — the finest grain", BLUE),
+    ("67,208", "lap timings — the finest grain", BLUE),
     ("9", "quarantine views, one per fact", AMBER),
     ("185", "automated tests", TEAL),
     ("0", "credentials required — both APIs keyless", TEAL),
@@ -415,7 +415,7 @@ points(s, Inches(3.0), [
 s, top = page("Decisions", "Three that were expensive to discover")
 points(s, top, [
     ("SCD-2 is built from results, not from /drivers",
-     "Every field /drivers returns is static, so Auto CDC over it yields a dimension with no history — the pattern implemented but never exercised. The attribute that changes is the constructor, and it only appears in results.  →  42 versions across 28 drivers, 14 historical."),
+     "Every field /drivers returns is static, so Auto CDC over it yields a dimension with no history — the pattern implemented but never exercised. The attribute that changes is the constructor, and it only appears in results.  →  44 versions across 28 drivers, 16 historical."),
     ("Sprint points are part of the championship",
      "Summing race points alone leaves 13 of 24 drivers short of their official 2024 total. With sprint points, reconciliation against the independent standings endpoint is exact."),
     ("Idempotency is a two-part contract, and both halves are required",
@@ -430,7 +430,7 @@ points(s, top, [
 ], size=14, gap=10)
 lead(s, Inches(3.35), "The census is not zero, and should not be", size=17)
 statgrid(s, Inches(4.05), [
-    ("69", "lap rows outside 40–300 s\nred-flag and safety-car laps", AMBER),
+    ("89", "lap rows outside 40–300 s\nred-flag and safety-car laps", AMBER),
     ("8", "standings rows with no\nchampionship position", AMBER),
     ("2", "pit stops published with\nan empty duration", AMBER),
     ("0", "rows lost without a\nreason attached", TEAL),
@@ -589,7 +589,7 @@ for i, (title, sub, col) in enumerate(cards):
 f = tf(s, M, Inches(5.85), BW, Inches(0.8))
 para(f, "The Genie agent already answers questions over Gold today, governed by the same grants. The app is the front "
         "door for people who will never open a Databricks workspace. SCD-2 already gives version history on the "
-        "dimensions — 42 driver versions, queryable now.", 13, TEAL, first=True, after=0, space=1.2)
+        "dimensions — 44 driver versions, queryable now.", 13, TEAL, first=True, after=0, space=1.2)
 
 # ══════════════════════ 17 · close ══════════════════════
 s = prs.slides.add_slide(BLANK)
@@ -607,7 +607,7 @@ para(f, "Ingestion is idempotent, Silver deduplicates on natural keys, dimension
         "as of the race date, and eleven validation checks say so on every run — including the weekly one nobody watches.",
      14, MUTED, after=0, space=1.3)
 statgrid(s, Inches(5.6), [
-    ("3", "seasons · 59 rounds", MUTED),
+    ("3", "seasons · 60 rounds", MUTED),
     ("6", "Gold marts · 6 decision pages", MUTED),
     ("224", "automated tests", MUTED),
     ("0", "reconciliation mismatches", TEAL),

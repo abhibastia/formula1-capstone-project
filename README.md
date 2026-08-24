@@ -276,8 +276,8 @@ so sharing a catalog would mean a prod deploy silently overwriting dev's tables.
 |---|---|
 | Landing | one JSON file per API call, per endpoint / season / round |
 | Bronze | one row per landed file |
-| Silver facts | driver × race — except **pit stops** (driver × race × stop) and **laps** (driver × race × lap, 65,862 rows) |
-| Silver dimensions | one row per version — `dim_driver` holds 42 versions across 28 drivers |
+| Silver facts | driver × race — except **pit stops** (driver × race × stop) and **laps** (driver × race × lap, 67,208 rows) |
+| Silver dimensions | one row per version — `dim_driver` holds 44 versions across 28 drivers |
 | Gold marts | driver × race, driver × round, or race — never finer |
 
 The lap is the finest grain and the reason the project can separate *who was
@@ -292,7 +292,7 @@ Full grain and metric definitions: `docs/architecture.md` §7.
 endpoint returns is static, so Auto CDC over it produces a dimension with no
 history at all — the pattern implemented but never exercised. Driver → constructor
 is the attribute that actually changes, and it only appears in results. This
-yields 42 versions across 28 drivers, 14 of them historical.
+yields 44 versions across 28 drivers, 16 of them historical.
 
 **Sprint points are part of the championship.** Summing race points alone leaves
 13 of 24 drivers short of their official 2024 total. With sprint points, the

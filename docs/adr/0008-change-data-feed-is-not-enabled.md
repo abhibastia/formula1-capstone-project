@@ -26,9 +26,11 @@ Do not enable Change Data Feed, because on the datasets where it would matter it
 | Materialised view | 8 Silver facts, 6 Gold marts | `MATERIALIZED_VIEW_UNSUPPORTED_OPERATION — Operation CHANGE DATA FEED is currently not supported on Materialized Views` |
 | Streaming table | 11 Bronze, both SCD-2 dimensions | Already enabled by Lakeflow — `delta.enableChangeDataFeed = true` |
 
-`table_changes('f1.silver.dim_driver', 2)` returns 42 rows today. Reading from
-version 0 fails on `deletedFileRetentionDuration` (168 hours), which is a
-retention limit, not a CDF one.
+`table_changes('f1.silver.dim_driver', N)` returns real rows for any version
+`N` still inside the 168-hour retention window — the version quoted when this
+ADR was first written has since rolled out of range and now fails the same
+way version 0 always has, on `deletedFileRetentionDuration`, which is a
+retention limit rather than a CDF one.
 
 ## Consequences
 
@@ -45,7 +47,7 @@ reversing ADR 0004 and losing the `_file_path` tiebreak. That is an architectura
 trade, not a checkbox, and it is not worth making to satisfy a criterion.
 
 **Available instead.** SCD Type 2 on the dimensions is real change tracking that
-exists and is queryable: 42 driver versions with `__START_AT` / `__END_AT`, and
+exists and is queryable: 44 driver versions with `__START_AT` / `__END_AT`, and
 it is what powers the as-of-race join in ADR 0006.
 
 ## Alternatives considered

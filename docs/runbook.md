@@ -365,7 +365,7 @@ databricks fs rm -r dbfs:/Volumes/f1/raw/landing/<endpoint>/season=<s>/round=<r>
 - **The wettest race has the lowest retirement rate.** Also the finding. Monza
   2024 measured 19.1 mm and ran dry, because a daily total cannot tell rain that
   fell overnight from rain that fell during the race.
-- **The quarantine census is not zero and should not be.** 69 lap rows fail
+- **The quarantine census is not zero and should not be.** 89 lap rows fail
   `plausible_lap_time` — red-flag and safety-car laps outside 40–300 s — plus 8
   standings rows with no championship position and 2 pit stops published with an
   empty duration. Zero everywhere would mean the expectations had stopped being
