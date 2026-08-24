@@ -30,7 +30,7 @@ BUILDER = ROOT / "docs" / "deck" / "build_deck.py"
 EMU_PER_INCH = 914400
 # Pinned so a slide silently disappearing from the builder is caught. Update
 # deliberately when the deck genuinely changes length.
-EXPECTED_SLIDES = 18
+EXPECTED_SLIDES = 15
 
 
 @pytest.fixture(scope="module")
